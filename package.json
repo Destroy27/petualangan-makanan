@@ -1,0 +1,16 @@
+{
+  "name": "petualangan-makanan",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Game edukasi sistem pencernaan (HTML) + Worker/D1 untuk rekap guru",
+  "scripts": {
+    "test": "node tests/game.test.mjs && node tests/worker.test.mjs",
+    "test:layout": "node tests/layout.test.mjs",
+    "test:all": "npm test && npm run test:layout"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "playwright-core": "^1.64.1"
+  }
+}
