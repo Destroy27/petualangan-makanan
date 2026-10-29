@@ -18,6 +18,10 @@ const html = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8').replace('<
 const posts = [];
 
 const server = createServer((req, res) => {
+  if (req.url.startsWith('/api/papan')) {
+    res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
+    return res.end('{"top":[]}');
+  }
   if (req.method === 'POST' && req.url === '/api/log') {
     let b = '';
     req.on('data', c => b += c);
@@ -30,7 +34,7 @@ const server = createServer((req, res) => {
   }
   if (req.method === 'OPTIONS') { res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type' }); return res.end(); }
   res.writeHead(200, { 'content-type': 'text/html;charset=utf-8' });
-  res.end(html.replace("const API_URL='';", `const API_URL='http://localhost:${server.address().port}';`));
+  res.end(html.replace(/const API_URL='[^']*';/, `const API_URL='http://localhost:${server.address().port}';`));
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 const URL_ = `http://localhost:${server.address().port}/`;
@@ -96,7 +100,7 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
       mapRight: Math.round(map.right), panelLeft: Math.round(panel.left),
       scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth,
       optFont: getComputedStyle(document.querySelector('.opt')).fontSize,
-      center: getComputedStyle(document.getElementById('qbody')).justifyContent,
+      center: getComputedStyle(document.getElementById('qin')).justifyContent,
       stepsTop: getComputedStyle(document.getElementById('stepsTop')).display,
       stepsSide: getComputedStyle(document.getElementById('steps')).display,
       here: !!document.getElementById('here'),
@@ -168,18 +172,51 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
 
 // ---------- Tablet ----------
 {
-  const page = await newPage(820, 1180);
-  await page.fill('#un', 'Tablet'); await page.fill('#pw', '1234'); await page.click('#lg');
+  const page = await newPage(1024, 600);
+  await page.fill('#un', 'TabLand'); await page.fill('#pw', '1234'); await page.click('#lg');
   await page.waitForSelector('#s-start.on');
   await page.click('#foods .food[data-i="0"]');
   await page.click('#go');
   await page.waitForSelector('#qbody .opt', { timeout: 15000 });
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: join(OUT, '7-tablet-1024x600.png') });
   const t = await page.evaluate(() => {
     const r = el => el.getBoundingClientRect();
-    return { panelW: Math.round(r(document.getElementById('panel')).width), stepsSide: getComputedStyle(document.getElementById('steps')).display };
+    const map = r(document.getElementById('map')), panel = r(document.getElementById('panel')), qb = document.getElementById('qbody');
+    return {
+      mapH: Math.round(map.height), mapW: Math.round(map.width), panelH: Math.round(panel.height), panelW: Math.round(panel.width),
+      qbBottom: Math.round(qb.getBoundingClientRect().bottom), panelBottom: Math.round(panel.bottom),
+      scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth,
+      pageH: document.documentElement.scrollHeight, vh: innerHeight, dapatScroll: qb.scrollHeight > qb.clientHeight + 1
+    };
   });
-  ok('tablet 820px: panel tidak sempit (pakai tata letak HP)', t.panelW > 700 && t.stepsSide !== 'none', `panel ${t.panelW}px, steps ${t.stepsSide}`);
+  ok('tablet 1024x600: peta & panel sama tinggi', Math.abs(t.mapH - t.panelH) <= 2, `map ${t.mapH} vs panel ${t.panelH}`);
+  ok('tablet 1024x600: isi panel tidak keluar dari kartu', t.qbBottom <= t.panelBottom + 1, `${t.qbBottom}/${t.panelBottom}`);
+  ok('tablet 1024x600: panel tetap lebar (>=360px)', t.panelW >= 360, `${t.panelW}px`);
+  ok('tablet 1024x600: tanpa geser horizontal', t.scrollW <= t.clientW, `${t.scrollW}/${t.clientW}`);
+  ok('tablet 1024x600: halaman tidak melebar ke bawah', t.pageH <= t.vh + 2, `${t.pageH}/${t.vh}`);
+  await page.context().close();
+}
+{
+  const page = await newPage(800, 1280);
+  await page.fill('#un', 'TabPotret'); await page.fill('#pw', '1234'); await page.click('#lg');
+  await page.waitForSelector('#s-start.on');
+  await page.click('#foods .food[data-i="0"]');
+  await page.click('#go');
+  await page.waitForSelector('#qbody .opt', { timeout: 15000 });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: join(OUT, '8-tablet-800x1280.png') });
+  const t = await page.evaluate(() => {
+    const r = el => el.getBoundingClientRect();
+    return {
+      panelW: Math.round(r(document.getElementById('panel')).width), mapH: Math.round(r(document.getElementById('map')).height),
+      stepsSide: getComputedStyle(document.getElementById('steps')).display,
+      scrollW: document.documentElement.scrollWidth, clientW: document.documentElement.clientWidth
+    };
+  });
+  ok('tablet potret 800px: panel selebar layar (tata letak HP)', t.panelW > 700 && t.stepsSide !== 'none', `panel ${t.panelW}px, steps ${t.stepsSide}`);
+  ok('tablet potret 800px: peta tidak memakan seluruh tinggi', t.mapH <= 420, `${t.mapH}px`);
+  ok('tablet potret 800px: tanpa geser horizontal', t.scrollW <= t.clientW, `${t.scrollW}/${t.clientW}`);
   await page.context().close();
 }
 

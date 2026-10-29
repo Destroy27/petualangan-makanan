@@ -10,3 +10,5 @@ database_id = "3d150770-c310-4612-8655-29672c451d17"
 [vars]
 # Ganti dengan origin game-mu. Harus sama persis (tanpa garis miring di akhir).
 ALLOWED_ORIGIN = "https://destroy27.github.io"
+# "1" = papan skor global (top 10) tampil di game, "0" = sembunyikan nama dari publik.
+PAPAN_PUBLIK = "1"

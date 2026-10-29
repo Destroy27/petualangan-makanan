@@ -3,20 +3,140 @@
 const AMBANG_GAGAL = 30;   // % jawaban 0 poin per organ → materi perlu diulas
 const AMBANG_RATA = 250;   // rata-rata skor per siswa di bawah ini → perlu pendampingan
 const MIN_SESI = 2;        // minimal sesi sebelum siswa disorot
-const PAGE = `<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Rekap Siswa</title>
-<style>body{font-family:system-ui;margin:12px;max-width:1000px}table{border-collapse:collapse;width:100%;margin:8px 0 20px;font-size:14px}td,th{border:1px solid #ccc;padding:6px;text-align:left}.w{background:#fff3cd;padding:8px;border-radius:8px;margin:4px 0}.t{overflow-x:auto}</style>
-<h2>Rekap Petualangan Makanan</h2><input id=k type=password placeholder="Kunci admin"> <button onclick=go()>Muat</button><div id=o></div>
+const PAGE = `<!doctype html><html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Rekap Petualangan Makanan</title>
+<style>
+:root{--bg:#fff7f3;--card:#fff;--ink:#3b2422;--mut:#7a5c57;--pri:#ff7a6b;--line:#f0dcd5;--warn:#fff3cd}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 4px}
+.hint{color:var(--mut);margin:0 0 14px;font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+input[type=password]{flex:1 1 220px;min-width:0;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font:inherit;background:#fff;color:inherit}
+button{padding:10px 16px;border:2px solid var(--line);border-radius:12px;background:#fff;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
+.msg{margin:6px 0 10px;color:var(--mut);min-height:1.2em;font-size:.88rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0 6px}
+.card{background:var(--card);border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 var(--line)}
+.card b{display:block;font-size:1.6rem;line-height:1.2;font-weight:700}
+.card small{color:var(--mut);font-size:.76rem;text-transform:uppercase;letter-spacing:.04em}
+h2{font-size:1.05rem;margin:22px 0 8px}
+h2 small{font-weight:400;color:var(--mut)}
+.w{background:var(--warn);border-radius:12px;padding:9px 12px;margin:6px 0;font-size:.92rem}
+.empty{background:var(--card);border-radius:14px;padding:16px;color:var(--mut);font-size:.9rem}
+.t{overflow-x:auto;background:var(--card);border-radius:14px;box-shadow:0 2px 0 var(--line)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;background:#fffaf8}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right}
+.rk{display:inline-block;min-width:24px;font-weight:700;color:var(--mut)}
+tr.top1 .rk,tr.top2 .rk,tr.top3 .rk{color:var(--pri)}
+.bar2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 4px}
+.bar2 label{font-size:.88rem;color:var(--mut)}
+select{padding:8px 10px;border:2px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit;max-width:100%}
+button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--pri)}
+@media print{.bar,.bar2,#csv,#out{display:none}body{background:#fff;padding:0}.t,.card{box-shadow:none;border:1px solid var(--line)}}
+</style></head><body><div class="wrap">
+<h1>🍽️ Rekap Petualangan Makanan</h1>
+<p class="hint">Nilai semua siswa, per kelas, dan per materi. Kunci admin hanya disimpan di tab ini, tidak pernah dikirim ke mana pun selain server ini.</p>
+<div class="bar"><input id="k" type="password" placeholder="Kunci admin" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
+<p class="msg" id="msg"></p>
+<div class="bar2" id="bar2" hidden><label>Kelas <select id="f"><option value="">Semua kelas</option></select></label><span class="hint" style="margin:0">Peringkat diurutkan dari skor terbaik.</span></div>
+<div id="o"></div>
+</div>
 <script>
-const E=s=>String(s??'').replace(/</g,'&lt;');
-const T=r=>'<div class=t><table><tr>'+Object.keys(r[0]||{}).map(k=>'<th>'+k+'</th>').join('')+'</tr>'+r.map(x=>'<tr>'+Object.values(x).map(v=>'<td>'+E(v)+'</td>').join('')+'</tr>').join('')+'</table></div>';
-async function go(){
- const r=await fetch('/api/rekap',{headers:{Authorization:'Bearer '+k.value}});
- if(!r.ok){o.textContent='Kunci salah';return}
- const d=await r.json();
- const a=d.organ.filter(x=>x.pct_gagal>=${AMBANG_GAGAL}).map(x=>'<div class=w>Materi <b>'+E(x.organ)+'</b>: '+x.pct_gagal+'% jawaban gagal total. Ulas ulang di kelas.</div>').join('');
- const b=d.siswa.filter(x=>x.rata<${AMBANG_RATA}&&x.sesi>=${MIN_SESI}).map(x=>'<div class=w><b>'+E(x.nama)+'</b> ('+E(x.kelas)+') rata-rata skor '+x.rata+'. Perlu pendampingan.</div>').join('');
- o.innerHTML='<h3>Saran tindakan</h3>'+(a+b||'<p>Belum ada yang menonjol.</p>')+'<h3>Per materi (organ)</h3>'+T(d.organ)+'<h3>Per siswa</h3>'+T(d.siswa)+'<h3>Soal tersulit</h3>'+T(d.soal);
+var SKEY='pcn_admin',D=null;
+function el(i){return document.getElementById(i)}
+function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function N(v){var x=+v||0;return x.toLocaleString('id-ID')}
+function tbl(head,rows){return '<div class="t"><table><thead><tr>'+head.map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
+function tr(cells,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'>'+cells.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}
+function key(){return el('k').value.trim()}
+function kelasOf(x){return x.kelas||'(tanpa kelas)'}
+
+async function load(){
+ var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
+ el('msg').textContent='Memuat…';
+ try{
+  var r=await fetch('/api/rekap',{headers:{Authorization:'Bearer '+k},cache:'no-store'});
+  if(r.status===401){el('msg').textContent='Kunci salah.';return}
+  if(!r.ok){el('msg').textContent='Gagal memuat (server '+r.status+').';return}
+  D=await r.json();
+  try{sessionStorage.setItem(SKEY,k)}catch(e){}
+  el('csv').disabled=false;
+  fillKelas();
+  el('msg').textContent='Terakhir dimuat '+new Date().toLocaleTimeString('id-ID')+' · '+N((D.siswa||[]).length)+' siswa, '+N((D.ringkasan&&D.ringkasan[0]?D.ringkasan[0].sesi:0))+' sesi';
+  render();
+ }catch(e){el('msg').textContent='Gagal menghubungi server. Cek koneksi lalu coba lagi.'}
 }
+
+function fillKelas(){
+ var set={};(D.siswa||[]).forEach(function(x){set[kelasOf(x)]=1});
+ var opts=[''].concat(Object.keys(set).sort()),s=el('f');
+ s.innerHTML=opts.map(function(v){return '<option value="'+E(v)+'">'+(v?E(v):'Semua kelas')+'</option>'}).join('');
+ el('bar2').hidden=false;
+}
+function siswa(){var f=el('f').value;return (D.siswa||[]).filter(function(x){return !f||kelasOf(x)===f})}
+
+function render(){
+ if(!D)return;
+ var byKelas=siswa(),all=D.siswa||[],R=(D.ringkasan&&D.ringkasan[0])||{},organ=D.organ||[],soal=D.soal||[];
+ var urut=byKelas.slice().sort(function(a,b){return (b.maks-a.maks)||(b.rata-a.rata)||String(a.nama).localeCompare(String(b.nama))});
+ var h='';
+
+ h+='<div class="cards">'
+  +'<div class="card"><b>'+N(R.sesi)+'</b><small>Total sesi main</small></div>'
+  +'<div class="card"><b>'+N(R.siswa)+'</b><small>Siswa terdata</small></div>'
+  +'<div class="card"><b>'+N(R.rata)+'</b><small>Rata-rata skor</small></div>'
+  +'<div class="card"><b style="font-size:1rem">'+E(R.terakhir||'–')+'</b><small>Sesi terakhir (WITA)</small></div>'
+  +'</div>';
+
+ var a=organ.filter(function(x){return x.pct_gagal>=${AMBANG_GAGAL}}).map(function(x){
+  return '<div class="w">Materi <b>'+E(x.organ)+'</b>: '+N(x.pct_gagal)+'% jawaban gagal total ('+N(x.n)+' jawaban). Ulas ulang di kelas.</div>'});
+ var b=all.filter(function(x){return x.rata<${AMBANG_RATA}&&x.sesi>=${MIN_SESI}}).map(function(x){
+  return '<div class="w"><b>'+E(x.nama)+'</b> ('+E(x.kelas||'-')+'): rata-rata '+N(x.rata)+' dari '+N(x.sesi)+' sesi. Perlu pendampingan.</div>'});
+ h+='<h2>Saran tindakan</h2>'+(a.concat(b).join('')||'<div class="empty">Belum ada yang menonjol: semua materi dan siswa masih di atas ambang.</div>');
+
+ h+='<h2>🏆 Peringkat siswa <small>('+N(urut.length)+' siswa'+(el('f').value?' · '+E(el('f').value):'')+')</small></h2>';
+ h+=urut.length?tbl(['#','Nama','Kelas','Sesi','Rata-rata','Terbaik','Terakhir main'],urut.map(function(x,i){
+   return tr(['<span class="rk">'+(['🥇','🥈','🥉'][i]||(i+1))+'</span>',E(x.nama),E(x.kelas||'-'),N(x.sesi),N(x.rata),'<b>'+N(x.maks)+'</b>',E(x.terakhir||'-')],i<3?'top'+(i+1):'')
+ })):'<div class="empty">Belum ada siswa di kelas ini.</div>';
+
+ var K={};all.forEach(function(x){var k=kelasOf(x),o=K[k]=K[k]||{kelas:k,siswa:0,sesi:0,poin:0,maks:0};o.siswa++;o.sesi+=(+x.sesi||0);o.poin+=(+x.rata||0)*(+x.sesi||0);o.maks=Math.max(o.maks,+x.maks||0)});
+ var kr=Object.keys(K).map(function(k){return K[k]}).sort(function(p,q){return (q.poin/Math.max(q.sesi,1))-(p.poin/Math.max(p.sesi,1))});
+ h+='<h2>🏫 Per kelas</h2>'+tbl(['Kelas','Siswa','Sesi','Rata-rata','Terbaik'],kr.map(function(x){
+  return tr([E(x.kelas),N(x.siswa),N(x.sesi),N(Math.round(x.poin/Math.max(x.sesi,1))),N(x.maks)])}));
+
+ h+='<h2>🫀 Per materi (organ)</h2>'+(organ.length?tbl(['Organ','Jawaban','Rata salah','% gagal (0 poin)','% pakai petunjuk'],organ.map(function(x){
+  return tr([E(x.organ),N(x.n),N(x.rata_salah),N(x.pct_gagal)+'%',N(x.pct_petunjuk)+'%'])})):'<div class="empty">Belum ada detail jawaban.</div>');
+
+ h+='<h2>🔎 Soal tersulit</h2>'+(soal.length?tbl(['Soal','Dijawab','Rata salah'],soal.map(function(x){
+  return tr([E(x.soal),N(x.n),N(x.rata_salah)])})):'<div class="empty">Belum ada soal yang cukup sering dijawab.</div>');
+
+ el('o').innerHTML=h;
+}
+
+function csv(){
+ if(!D)return;
+ var urut=siswa().slice().sort(function(a,b){return (b.maks-a.maks)||(b.rata-a.rata)});
+ var rows=[['Peringkat','Nama','Kelas','Sesi','Rata-rata','Skor terbaik','Terakhir main']];
+ urut.forEach(function(x,i){rows.push([i+1,x.nama,x.kelas||'',x.sesi,x.rata,x.maks,x.terakhir||''])});
+ var txt='\\uFEFF'+rows.map(function(r){return r.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}).join(',')}).join('\\r\\n');
+ var a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
+ a.download='rekap-pencernaan-'+new Date().toISOString().slice(0,10)+'.csv';
+ document.body.appendChild(a);a.click();a.remove();
+}
+
+el('go').onclick=load;
+el('csv').onclick=csv;
+el('f').onchange=render;
+el('k').onkeydown=function(e){if(e.key==='Enter')load()};
+el('out').onclick=function(){try{sessionStorage.removeItem(SKEY)}catch(e){}el('k').value='';D=null;el('o').innerHTML='';el('bar2').hidden=true;el('csv').disabled=true;el('msg').textContent='Kunci dihapus dari tab ini.'};
+try{var saved=sessionStorage.getItem(SKEY);if(saved){el('k').value=saved;load()}}catch(e){}
 </script>`;
 
 export default {
@@ -56,11 +176,26 @@ export default {
       }
     }
 
+    // Papan skor publik (dipakai game): skor terbaik tiap siswa, 10 teratas.
+    // Matikan dengan PAPAN_PUBLIK="0" di wrangler.toml kalau nama siswa tidak boleh tampil.
+    if (u.pathname === '/api/papan' && req.method === 'GET') {
+      if (env.PAPAN_PUBLIK === '0') return J({ top: [] });
+      try {
+        const r = await env.DB.prepare(
+          'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10'
+        ).all();
+        return J({ top: r.results || [] });
+      } catch (e) {
+        return J({ top: [] }); // game tetap jalan dengan papan lokal
+      }
+    }
+
     if (u.pathname === '/api/rekap') {
       if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
       const q = s => env.DB.prepare(s).all().then(r => r.results);
       try {
         return J({
+          ringkasan: await q("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi"),
           organ: await q('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban GROUP BY organ'),
           siswa: await q('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi GROUP BY nama,kelas ORDER BY rata ASC'),
           soal: await q('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5')

@@ -21,6 +21,8 @@ function fakeDB() {
         async run() { log.run.push({ sql, args: st.args }); return { meta: { last_row_id: 7 } }; },
         async all() {
           log.all.push({ sql, args: st.args });
+          if (/ORDER BY maks DESC/.test(sql)) return { results: [{ nama: 'Budi', kelas: 'X-1', maks: 600, sesi: 2 }, { nama: 'Sari', kelas: 'X-2', maks: 300, sesi: 1 }] };
+          if (/COUNT\(\*\) sesi/.test(sql)) return { results: [{ sesi: 3, siswa: 2, rata: 300, terakhir: '2026-10-29 17:00:00' }] };
           if (/FROM jawaban GROUP BY organ/.test(sql)) return { results: [{ organ: 'Mulut', n: 4, rata_salah: 1.5, pct_gagal: 50, pct_petunjuk: 25 }] };
           if (/FROM sesi GROUP BY/.test(sql)) return { results: [{ nama: 'Budi', kelas: 'X-1', sesi: 2, rata: 220, maks: 300, terakhir: '2026-10-29 06:00:00' }] };
           return { results: [{ soal: 'Enzim air liur?', n: 5, rata_salah: 1.2 }] };
@@ -33,7 +35,7 @@ function fakeDB() {
   return { db, log };
 }
 
-const env = () => { const f = fakeDB(); return { env: { DB: f.db, ADMIN_KEY: 'rahasia', ALLOWED_ORIGIN: 'https://siswa.github.io' }, log: f.log }; };
+const env = () => { const f = fakeDB(); return { env: { DB: f.db, ADMIN_KEY: 'rahasia', ALLOWED_ORIGIN: 'https://siswa.github.io', PAPAN_PUBLIK: '1' }, log: f.log }; };
 const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test' + path, init), e);
 
 // 1) kiriman normal
@@ -96,6 +98,26 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
   const d = await c.json();
   ok('rekap kunci benar → 200', c.status === 200, String(c.status));
   ok('rekap berisi organ/siswa/soal', ['organ', 'siswa', 'soal'].every(k => Array.isArray(d[k])), Object.keys(d).join(','));
+  ok('rekap berisi ringkasan (total sesi/siswa/rata-rata)', Array.isArray(d.ringkasan) && d.ringkasan[0].sesi === 3 && d.ringkasan[0].siswa === 2, JSON.stringify(d.ringkasan));
+}
+
+// 3b) papan skor publik untuk game
+{
+  const { env: e } = env();
+  const a = await call(e, '/api/papan');
+  const d = await a.json();
+  ok('GET /api/papan → 200 tanpa kunci', a.status === 200, String(a.status));
+  ok('papan mengirim top skor terbaik per siswa', Array.isArray(d.top) && d.top.length === 2 && d.top[0].maks === 600, JSON.stringify(d.top));
+  ok('papan tidak membocorkan data lain (hanya nama/kelas/maks/sesi)', d.top.every(x => Object.keys(x).sort().join(',') === 'kelas,maks,nama,sesi'), JSON.stringify(Object.keys(d.top[0])));
+
+  const off = await call({ ...e, PAPAN_PUBLIK: '0' }, '/api/papan');
+  ok('PAPAN_PUBLIK="0" menyembunyikan papan', (await off.json()).top.length === 0);
+
+  const rusak = await call({ DB: { prepare() { throw new Error('db mati'); } }, ALLOWED_ORIGIN: 'https://siswa.github.io' }, '/api/papan');
+  ok('DB error → papan kosong, bukan 500 (game tetap jalan)', rusak.status === 200 && (await rusak.json()).top.length === 0, String(rusak.status));
+
+  const lain = await call(e, '/api/papan', { headers: { Origin: 'https://situs-lain.example' } });
+  ok('papan dari origin lain → 403', lain.status === 403, String(lain.status));
 }
 
 // 4) OPTIONS, rute lain, /admin, dan render halaman guru
@@ -117,6 +139,7 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
     beforeParse(w) {
       w.fetch = async () => ({
         ok: true, status: 200, json: async () => ({
+          ringkasan: [{ sesi: 6, siswa: 3, rata: 283, terakhir: '2026-10-29 17:00:00' }],
           organ: [{ organ: 'Mulut', n: 10, rata_salah: 1.4, pct_gagal: 45, pct_petunjuk: 30 }, { organ: 'Anus', n: 8, rata_salah: 0.2, pct_gagal: 12, pct_petunjuk: 0 }],
           siswa: [{ nama: 'Budi', kelas: 'X-1', sesi: 3, rata: 200, maks: 300, terakhir: '2026-10-29 06:00:00' }, { nama: 'Sari', kelas: 'X-1', sesi: 1, rata: 150, maks: 150, terakhir: '2026-10-29 06:00:00' }, { nama: '<img src=x onerror=alert(1)>', kelas: 'X-2', sesi: 2, rata: 500, maks: 600, terakhir: 'x' }],
           soal: [{ soal: 'Enzim air liur?', n: 5, rata_salah: 1.2 }]
@@ -124,16 +147,39 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
       });
     }
   });
-  dom.window.document.getElementById('k').value = 'rahasia';
-  dom.window.document.querySelector('button').click();
+  const w = dom.window, doc = w.document;
+  doc.getElementById('k').value = 'rahasia';
+  doc.querySelector('button').click();
   await new Promise(r => setTimeout(r, 300));
-  const out = dom.window.document.getElementById('o').textContent;
-  const warns = dom.window.document.querySelectorAll('.w');
+  const out = doc.getElementById('o').textContent;
+  const warns = doc.querySelectorAll('.w');
   ok('admin merender saran tindakan', /Saran tindakan/.test(out), out.slice(0, 70));
   ok('ambang 30% memunculkan materi Mulut saja', warns.length === 2 && /Mulut/.test(warns[0].textContent) && ![...warns].map(w => w.textContent).join(' ').includes('Anus'), [...warns].map(w => w.textContent).join(' | '));
   ok('siswa rata<250 & sesi>=2 disorot, sesi 1 tidak', /Budi/.test(out) && warns[1]?.textContent.includes('Budi'), warns[1]?.textContent);
-  ok('nama berisi HTML di-escape', !dom.window.document.querySelector('#o img'), 'ada elemen img');
-  ok('tabel per organ/siswa/soal ada', /Per materi/.test(out) && /Per siswa/.test(out) && /Soal tersulit/.test(out));
+  ok('nama berisi HTML di-escape', !doc.querySelector('#o img'), 'ada elemen img');
+  ok('tabel peringkat/kelas/materi/soal ada', /Peringkat siswa/.test(out) && /Per kelas/.test(out) && /Per materi/.test(out) && /Soal tersulit/.test(out));
+  ok('kartu ringkasan terisi dari data', /Total sesi main/.test(out) && /Sesi terakhir \(WITA\)/.test(out) && /283/.test(out), out.slice(0, 90));
+
+  const rank = () => [...doc.querySelectorAll('#o table')[0].querySelectorAll('tbody tr')].map(r => [...r.cells].map(c => c.textContent.trim()));
+  const r0 = rank();
+  ok('peringkat urut skor terbaik (600 → 300 → 150)', r0.length === 3 && r0[0][5] === '600' && r0[1][1] === 'Budi' && r0[2][5] === '150', JSON.stringify(r0.map(r => r[1] + ':' + r[5])));
+  ok('tiga teratas memakai medali', r0[0][0] === '🥇' && r0[2][0] === '🥉', r0.map(r => r[0]).join('|'));
+
+  const f = doc.getElementById('f');
+  f.value = 'X-2'; f.dispatchEvent(new w.Event('change'));
+  const r1 = rank();
+  ok('filter kelas menyaring peringkat', r1.length === 1 && r1[0][2] === 'X-2', JSON.stringify(r1));
+  f.value = ''; f.dispatchEvent(new w.Event('change'));
+  ok('filter "semua kelas" mengembalikan 3 siswa', rank().length === 3, JSON.stringify(rank().map(r => r[1])));
+
+  let blob = null;
+  w.URL.createObjectURL = b => { blob = b; return 'blob:x'; };
+  w.HTMLAnchorElement.prototype.click = function () { };
+  doc.getElementById('csv').click();
+  const txt = blob && blob.text ? await blob.text() : '';
+  const baris = (txt.match(/\r\n/g) || []).length;
+  ok('CSV: header + 3 baris siswa', /Peringkat","Nama","Kelas/.test(txt) && baris === 3, JSON.stringify(txt.slice(0, 80)));
+  ok('CSV: nama aneh tetap aman dalam tanda kutip', txt.includes('"<img src=x onerror=alert(1)>"'), txt.split('\r\n')[1]?.slice(0, 40));
   dom.window.close();
 }
 

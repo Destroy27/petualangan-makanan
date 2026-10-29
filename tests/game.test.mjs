@@ -11,8 +11,8 @@ const { JSDOM } = require('jsdom');
 
 const raw = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8');
 const INJECT = 'window.__t={getG:()=>G,getST:()=>ST,getTEAM:()=>TEAM,getLVL:()=>LVL,getMODEG:()=>MODEG};';
-// Simulasikan kondisi "sudah dipasang": API_URL diisi seperti setelah langkah pemasangan.
-const html = raw.replace("const API_URL='';", "const API_URL='https://api.test';")
+// Simulasikan kondisi "sudah dipasang": API_URL diarahkan ke server uji.
+const html = raw.replace(/const API_URL='[^']*';/, "const API_URL='https://api.test';")
   .replace('</script>', INJECT + '\n</script>');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -25,6 +25,10 @@ const until = async (fn, label, ms = 9000) => {
 function mk(opts = {}) {
   const calls = [];
   const fetchImpl = opts.fetch || (async (url, o) => {
+    if (/\/api\/papan$/.test(url)) {
+      calls.push({ url, papan: true });
+      return { ok: true, status: 200, json: async () => ({ top: opts.papan || [] }) };
+    }
     calls.push({ url, body: JSON.parse(o.body) });
     return { ok: true, status: 200, json: async () => ({ ok: 1 }) };
   });
@@ -199,7 +203,8 @@ async function scenarioOffline() {
 
   const env2 = mk({ storage });
   await sleep(200);
-  ok('kunjungan berikutnya mengirim ulang antrean', env2.calls.length === 1 && env2.calls[0].body.skor === 600, JSON.stringify(env2.calls.map(c => c.body.skor)));
+  const kirim = env2.calls.filter(c => /\/api\/log$/.test(c.url));
+  ok('kunjungan berikutnya mengirim ulang antrean', kirim.length === 1 && kirim[0].body.skor === 600, JSON.stringify(kirim.map(c => c.body.skor)));
   ok('antrean dibersihkan setelah dikirim', !env2.w.localStorage.getItem('pcn_q'), String(env2.w.localStorage.getItem('pcn_q')));
   env2.dom.window.close();
 }
@@ -280,7 +285,26 @@ async function scenarioMainLagi() {
   env.dom.window.close();
 }
 
-const scenarios = [scenarioSolo, scenarioSalahDanPetunjuk, scenarioTim, scenarioOffline, scenarioLevelDanSuara, scenarioLoginUlang, scenarioKelas, scenarioMainLagi];
+async function scenarioPapan() {
+  const env = mk({ papan: [{ nama: 'Sari', kelas: 'X-2', maks: 600, sesi: 3 }, { nama: 'Budi', kelas: 'X-1', maks: 450, sesi: 2 }, { nama: '<b>Nakal</b>', kelas: 'X-1', maks: 10, sesi: 1 }] });
+  const { w, d } = env;
+  login(w, d, 'Budi', '1234', 'X-1');
+  await until(() => /semua perangkat/.test(d.getElementById('lb').textContent), 'papan global');
+  const lb = d.getElementById('lb');
+  ok('papan skor global tampil (bukan hanya perangkat ini)', /semua perangkat/.test(lb.textContent), lb.textContent.slice(0, 60));
+  ok('papan global urut dari skor tertinggi', lb.querySelectorAll('.row')[0].textContent.includes('Sari'), lb.querySelector('.row').textContent);
+  ok('baris siswa sendiri ditandai', !!lb.querySelector('.row.me') && /Budi/.test(lb.querySelector('.row.me').textContent), lb.querySelector('.row.me')?.textContent || 'tidak ada');
+  ok('nama di papan global di-escape', lb.textContent.includes('<b>Nakal</b>') && !lb.querySelector('.row img'), [...lb.querySelectorAll('.row')].map(x => x.textContent).join('|'));
+  env.dom.window.close();
+
+  const env2 = mk({ papan: [] });
+  login(env2.w, env2.d, 'Tono', '1111', 'X-3');
+  await sleep(250);
+  ok('server kosong → papan lokal tetap dipakai', /perangkat ini/.test(env2.d.getElementById('lb').textContent), env2.d.getElementById('lb').textContent.slice(0, 60));
+  env2.dom.window.close();
+}
+
+const scenarios = [scenarioSolo, scenarioSalahDanPetunjuk, scenarioTim, scenarioOffline, scenarioLevelDanSuara, scenarioLoginUlang, scenarioKelas, scenarioMainLagi, scenarioPapan];
 for (const s of scenarios) {
   try { await s(); } catch (e) { ok(s.name + ' (crash)', false, e.message); }
 }

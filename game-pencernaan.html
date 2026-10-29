@@ -5,10 +5,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff1ec;--card:#fff;--ink:#4a2c2a;--pri:#ff7a6b;--ok:#2fbf80;--bad:#ff5470;--soft:#ffd9cf;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#2a1c24;--card:#3a2733;--ink:#ffe9e2;--soft:#55374a}}
-:root[data-theme="dark"]{--bg:#2a1c24;--card:#3a2733;--ink:#ffe9e2;--soft:#55374a}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{--bg:#fff1ec;--card:#fff;--ink:#4a2c2a;--pri:#ff7a6b;--ok:#2fbf80;--bad:#ff5470;--soft:#ffd9cf;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *{box-sizing:border-box}
 body{margin:0;min-height:100%;font-family:Fredoka,"Trebuchet MS",system-ui,sans-serif;background:var(--bg);color:var(--ink);background-image:radial-gradient(circle at 15% 8%,var(--soft),transparent 45%)}
 #app{max-width:980px;margin:0 auto;padding:12px}
@@ -56,14 +54,16 @@ input{display:block;width:100%;margin:8px 0;padding:12px;border-radius:14px;bord
 .big{font-size:3rem;font-weight:700;color:var(--pri);line-height:1}
 .row{display:flex;justify-content:space-between;padding:6px 10px;border-radius:10px;background:var(--soft);margin:5px 0;text-align:left}
 #app{max-width:1120px;padding:14px}
-#play{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map panel";gap:14px;align-items:stretch;min-height:min(80vh,720px)}
-#map{height:100%;min-height:0;grid-area:map;margin:0}
+#play{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map panel";gap:14px;align-items:stretch;grid-template-rows:min(78vh,700px,calc((100vw - 420px) * 1.4142))}
+@supports(height:1svh){#play{grid-template-rows:min(78svh,700px,calc((100vw - 420px) * 1.4142))}}
+#map{height:100%;min-height:0;grid-area:map;margin:0;width:auto}
 #steps{grid-area:steps;display:none;flex-direction:column;flex-wrap:nowrap;gap:6px;align-content:flex-start;justify-content:center;min-width:0}
 .stp{padding:5px 12px;border-radius:99px;background:var(--card);font-weight:700;font-size:.85rem;opacity:.65;box-shadow:0 3px 0 var(--soft);transition:.3s}
 .stp.on{background:var(--pri);color:#fff;opacity:1;transform:scale(1.06)}.stp.done{opacity:1;color:var(--ok)}
-#panel{grid-area:panel;display:flex;flex-direction:column;justify-content:flex-start;min-height:0;padding:clamp(12px,1.8vw,22px)}
-#stepsTop{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;margin-bottom:4px}
-#qbody{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
+#panel{grid-area:panel;display:flex;flex-direction:column;justify-content:flex-start;min-height:0;overflow:hidden;padding:clamp(12px,1.8vw,22px)}
+#stepsTop{display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start;margin-bottom:4px;flex:0 0 auto}
+#qbody{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+#qin{display:flex;flex-direction:column;justify-content:center;min-height:100%}
 #panel h2{font-size:clamp(1.15rem,2.2vw,1.6rem);margin:8px 0 4px}
 .opt{font-size:clamp(1rem,1.8vw,1.2rem);padding:12px 14px;margin:6px 0}
 .intro{font-size:clamp(.95rem,1.6vw,1.1rem)}
@@ -72,7 +72,9 @@ input{display:block;width:100%;margin:8px 0;padding:12px;border-radius:14px;bord
 @media(min-width:701px){.set{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .set>.sub,.set>#tm{grid-column:1/-1}
 select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:var(--card);color:inherit;font:inherit;max-width:100%}
-@media(max-width:900px){#app{padding:8px}#play{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map steps" "panel panel";grid-template-rows:auto auto;min-height:0}#map{height:44vh}#steps{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center}.stp{font-size:.72rem;padding:4px 8px}#stepsTop{display:none}#qbody{justify-content:flex-start}}
+.row.me{outline:3px solid var(--pri);outline-offset:-3px}
+@media(max-width:900px){#app{padding:8px}#play{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map steps" "panel panel";grid-template-rows:auto auto;gap:10px}#map{height:min(40vh,50vw)}#steps{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center}.stp{font-size:.75rem;padding:4px 9px;transform-origin:left center}.stp.on{transform:none}#stepsTop{display:none}#panel{overflow:visible}#qbody{flex:0 0 auto;overflow:visible}#qin{min-height:0;justify-content:flex-start}}
+@media(max-width:600px){#map{height:44vh}.stp{font-size:.72rem;padding:4px 8px}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
 </style></head>
 <body><div id="app">
@@ -89,7 +91,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
  <div id="hud"><span id="hf"></span><span id="dots"></span><span id="hs">⭐ 0</span><span id="hl"></span><button id="snd" title="Suara">🔊</button></div>
  <div id="play">
   <div id="map"><div id="cam"><div id="ring"></div><div id="tag"></div><div id="blob"></div></div></div>
-  <div id="steps"></div><div id="panel"><div id="stepsTop"></div><div id="qbody"></div></div>
+  <div id="steps"></div><div id="panel"><div id="stepsTop"></div><div id="qbody"><div id="qin"></div></div></div>
  </div>
 </section>
 
@@ -165,8 +167,14 @@ let ME=null,MODEG='solo',TEAM=[],VOI=null;
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const DB={get(){try{return JSON.parse(localStorage.getItem('pcn_users'))||{}}catch(e){return{}}},set(u){try{localStorage.setItem('pcn_users',JSON.stringify(u))}catch(e){}}};
 const hs=s=>{let h=5381;for(const c of s)h=((h*33)^c.charCodeAt(0))>>>0;return h};
-function board(){const a=Object.values(DB.get()).sort((x,y)=>y.best-x.best).slice(0,5);$('lb').innerHTML=a.length?'<h2>🏆 Papan Skor (perangkat ini)</h2>'+a.map((x,i)=>'<div class="row"><span>'+(i+1)+'. '+esc(x.name)+'</span><b>'+x.best+'</b></div>').join(''):''}
-function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start')}
+function boardRows(rows,judul,note){return '<h2>'+judul+'</h2>'+(rows.length?rows.map((x,i)=>'<div class="row'+(x.me?' me':'')+'"><span>'+(['🥇','🥈','🥉'][i]||(i+1)+'.')+' '+esc(x.nama)+(x.kelas?' <small style="opacity:.65">'+esc(x.kelas)+'</small>':'')+'</span><b>'+(+x.maks||0)+'</b></div>').join(''):'<p class="sub" style="margin:0">'+note+'</p>')}
+function board(){const my=ME&&DB.get()[ME]?DB.get()[ME].name:'';const loc=Object.values(DB.get()).sort((a,b)=>b.best-a.best).slice(0,5).map(x=>({nama:x.name,maks:x.best,me:x.name===my}));
+ $('lb').innerHTML=boardRows(loc,'🏆 Papan Skor (perangkat ini)','Belum ada skor di perangkat ini.');
+ if(!API_URL)return;
+ fetch(API_URL+'/api/papan',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
+  $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa · 10 teratas</p>'
+ }).catch(()=>{})}
+function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start');board()}
 $('lg').onclick=()=>{const n=$('un').value.trim().slice(0,16),p=$('pw').value,k=n.toLowerCase(),kl=$('kl').value.trim().slice(0,10);if(!n||!/^\d{4}$/.test(p)){$('lm').textContent='Isi nama dan PIN 4 angka ya.';return}
  const u=DB.get();if(u[k]){if(u[k].pin!==hs(p+k)){$('lm').textContent='PIN salah.';SFX.bad();return}u[k].name=n;if(kl)u[k].kelas=kl}else u[k]={name:n,pin:hs(p+k),kelas:kl,best:0,plays:0,team:0,hist:[]};
  DB.set(u);ME=k;$('pw').value='';$('lm').textContent='';SFX.ok();showStart()};
@@ -191,19 +199,19 @@ function hud(){if(G.i!=null){const h=ST.map((s,i)=>'<span class="stp '+(i<G.i?'d
 function move(path,cb){let n=0;(function step(){if(n>=path.length)return cb&&cb();const[p,q]=path[n++];
  $('blob').style.left=p+'%';$('blob').style.top=q+'%';setTimeout(step,780)})()}
 function enter(i){const st=ST[i];G.i=i;G.lives=null;hud();
- $('qbody').innerHTML='<div class="intro">🚚 Sedang bergerak menuju <b>'+st.k+'</b>...</div>';cam(1,50,50);if(innerWidth<=900)scrollTo({top:0,behavior:'smooth'});try{speechSynthesis.cancel()}catch(e){}
+ $('qin').innerHTML='<div class="intro">🚚 Sedang bergerak menuju <b>'+st.k+'</b>...</div>';$('qbody').scrollTop=0;cam(1,50,50);if(innerWidth<=900)scrollTo({top:0,behavior:'smooth'});try{speechSynthesis.cancel()}catch(e){}
  $('ring').style.left=st.x+'%';$('ring').style.top=st.y+'%';
  $('tag').textContent=st.k;$('tag').style.left=st.x+'%';$('tag').style.top=`calc(${st.y}% - 3.3rem)`;
  if(i>0)SFX.gulp();
  move([...st.via,[st.x,st.y]],()=>{i==0?SFX.munch():SFX.pop();ask()})}
 function ask(){const st=ST[G.i];G.lives=3;const pool=LVL==0?X[G.i].m:LVL==2?X[G.i].s:st.q;G.q=pool[Math.random()*pool.length|0];G.hint=0;hud();cam(2,st.x,st.y);
  const o=G.q[1].map((t,i)=>[t,i]).sort(()=>Math.random()-.5);
- $('qbody').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button><div id="fb"></div>`;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'})}
+ $('qin').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button><div id="fb"></div>`;$('qbody').scrollTop=0;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'})}
 function burst(x,y,a){for(let i=0;i<14;i++){const s=document.createElement('span');s.className='cf';s.textContent=a[i%a.length];
  s.style.left=x+'%';s.style.top=y+'%';s.style.setProperty('--dx',(Math.random()*180-90)+'px');s.style.setProperty('--dy',(Math.random()*-150-20)+'px');
  $('cam').appendChild(s);setTimeout(()=>s.remove(),1000)}}
 function done(pts){G.score+=pts;G.res.push(pts);(G.log=G.log||[]).push({o:ST[G.i].k,p:TEAM.length?TEAM[G.i%TEAM.length]:'',s:3-G.lives,h:G.hint,pt:pts,q:G.q[0]});if(TEAM.length)G.ps[G.i%TEAM.length]+=pts;hud();speak('Jawaban benar: '+G.q[1][G.q[2]]+'. '+X[G.i].d);$('fb').insertAdjacentHTML('afterend','<div class="intro" style="margin-top:10px">📘 Pembahasan: jawaban benar = <b>'+G.q[1][G.q[2]]+'</b>. '+X[G.i].d+(G.i==3?'<small>🍽️ Khusus '+G.f.n+': '+FACT[G.f.n]+'</small>':'')+'</div>');const last=G.i==ST.length-1;
- $('qbody').insertAdjacentHTML('beforeend',`<button class="btn" id="next" style="margin-top:12px">${last?'Lihat Hasil 🎉':'Lanjut ➜'}</button>`)}
+ $('qin').insertAdjacentHTML('beforeend',`<button class="btn" id="next" style="margin-top:12px">${last?'Lihat Hasil 🎉':'Lanjut ➜'}</button>`);setTimeout(()=>{const n=$('next');if(n&&n.scrollIntoView)n.scrollIntoView({block:'nearest'})},60)}
 $('panel').onclick=e=>{
  if(e.target.id=='say'){speak(G.sp,1);return}if(e.target.id=='hint'){if(G.hint||G.lives<=0)return;const w=[...document.querySelectorAll('.opt:not(:disabled)')].filter(x=>+x.dataset.i!==G.q[2]);if(w.length>1){const x=w[Math.random()*w.length|0];x.disabled=true;x.style.opacity=.35;G.hint=1;e.target.disabled=true;SFX.pop()}return}const nx=e.target.closest('#next');if(nx){nx.disabled=true;G.i==ST.length-1?finish():enter(G.i+1);return}
  const b=e.target.closest('.opt');if(!b||b.disabled||G.lives<=0)return;const st=ST[G.i],ok=+b.dataset.i===G.q[2];
@@ -219,5 +227,5 @@ function finish(){SFX.win();save();sendLog();const max=ST.length*100,st=G.score>
  $('end').innerHTML=`${face(G.f)}<h1>Petualangan Selesai!</h1><div>${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div><div class="big">${G.score}</div><p>dari ${max} poin</p><p>🍽️ ${FACT[G.f.n]}</p>${TEAM.length?'<h2>👥 Skor anggota tim</h2>'+TEAM.map((n,i)=>'<div class="row"><span>'+esc(n)+'</span><b>'+G.ps[i]+'</b></div>').join(''):''}`+
   ST.map((s,i)=>`<div class="row"><span>${s.k}</span><b>${G.res[i]>0?'✅ +'+G.res[i]:'❌ 0'}</b></div>`).join('')+
   `<button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;
- show('s-end');$('again').onclick=()=>{SFX.pop();document.querySelectorAll('.food').forEach(x=>x.classList.remove('sel'));$('go').disabled=true;show('s-start')}}
+ show('s-end');$('again').onclick=()=>{SFX.pop();document.querySelectorAll('.food').forEach(x=>x.classList.remove('sel'));$('go').disabled=true;showStart()}}
 </script></body></html>
