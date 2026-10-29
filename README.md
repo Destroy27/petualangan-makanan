@@ -12,7 +12,7 @@ belajar siswa. Tanpa framework, tanpa build step: buka filenya, langsung jalan.
 | Berkas | Keterangan |
 |---|---|
 | `game-pencernaan.html` | Game lengkap. Satu-satunya berkas yang perlu di-hosting untuk siswa. |
-| `worker.js` | API penerima hasil (`POST /api/log`), rekap (`GET /api/rekap`), halaman guru (`/admin`). |
+| `worker.js` | API penerima hasil (`POST /api/log`), papan skor publik (`GET /api/papan`), rekap (`GET /api/rekap`), halaman guru (`/admin`). |
 | `schema.sql` | Skema tabel `sesi` & `jawaban` + indeks. |
 | `wrangler.toml` | Konfigurasi Worker, binding D1, dan `ALLOWED_ORIGIN`. |
 | `tests/` | Uji otomatis (lihat bagian *Uji*). |
@@ -67,6 +67,7 @@ Rekap guru: buka `https://pencernaan-api.<subdomain>.workers.dev/admin`, isi kun
 | `AMBANG_GAGAL` | `worker.js` (baris 3) | % jawaban bernilai 0 per organ yang memicu saran "ulas ulang di kelas". Default 30. |
 | `AMBANG_RATA` | `worker.js` | Rata-rata skor di bawah ini memicu saran pendampingan. Default 250. |
 | `MIN_SESI` | `worker.js` | Minimal jumlah sesi sebelum siswa disorot. Default 2. |
+| `PAPAN_PUBLIK` | `wrangler.toml` | `"1"` = papan skor global (top 10, nama + kelas + skor terbaik) tampil di game. `"0"` = sembunyikan dari publik. |
 
 ## Data yang dikirim
 
@@ -96,18 +97,30 @@ ubah di `schema.sql` kalau perlu).
 
 `/admin` menampilkan:
 
+- **Kartu ringkasan** — total sesi, jumlah siswa, rata-rata skor, waktu sesi terakhir (WITA).
 - **Saran tindakan otomatis** — materi dengan ≥ `AMBANG_GAGAL`% jawaban gagal total, dan siswa dengan
   rata-rata < `AMBANG_RATA` dari minimal `MIN_SESI` sesi.
-- **Tabel per organ** — jumlah jawaban, rata-rata salah, % gagal, % memakai petunjuk.
-- **Tabel per siswa** — sesi, rata-rata, skor terbaik, waktu terakhir.
+- **Peringkat semua siswa** — urut skor terbaik (medali untuk 3 teratas), lengkap dengan sesi, rata-rata,
+  dan waktu terakhir. Bisa disaring per kelas.
+- **Tabel per kelas** — jumlah siswa, sesi, rata-rata kelas, skor terbaik.
+- **Tabel per materi (organ)** — jumlah jawaban, rata-rata salah, % gagal, % memakai petunjuk.
 - **Soal tersulit** — 5 soal dengan rata-rata salah tertinggi (minimal 3 jawaban).
+- **⬇ Unduh CSV** — nilai semua siswa (mengikuti filter kelas) untuk diolah di Excel/Spreadsheet.
+  Kunci admin disimpan di `sessionStorage` tab itu saja, jadi tidak perlu ketik ulang saat refresh.
+
+## Papan skor di game
+
+Layar login/awal menampilkan **Papan Skor (semua perangkat)**: 10 skor terbaik dari D1, diambil dari
+`GET /api/papan`, dengan baris siswa sendiri ditandai. Kalau server tidak bisa dihubungi, game otomatis
+kembali ke papan lokal perangkat. Set `PAPAN_PUBLIK = "0"` di `wrangler.toml` bila nama siswa tidak boleh
+tampil ke publik (game tetap jalan dengan papan lokal).
 
 ## Uji
 
 ```bash
 npm install
-npm test            # 51 pemeriksaan game (jsdom) + 34 pemeriksaan worker (D1 palsu)
-npm run test:layout # 21 pemeriksaan tata letak & satu putaran penuh di Chrome/Edge
+npm test            # 56 pemeriksaan game (jsdom) + 48 pemeriksaan worker/D1 palsu
+npm run test:layout # 28 pemeriksaan tata letak (desktop, HP, tablet) + 1 putaran penuh di Chrome
 npm run test:all
 ```
 
@@ -124,4 +137,9 @@ browser) dan menyimpan screenshot ke `tests/shots/`.
   sudah ada; kalau belum ada, muncul petunjuk cara memasangnya. Di Windows, Edge biasanya punya suara
   Indonesia "Natural" yang lebih halus.
 - **Privasi.** Nama, kelas, dan skor siswa tersimpan di database Cloudflare. Beri tahu siswa (dan orang
-  tua bila perlu) serta ikuti aturan sekolah sebelum dipakai di kelas.
+  tua bila perlu) serta ikuti aturan sekolah sebelum dipakai di kelas. Papan skor global menampilkan nama
+  + kelas 10 siswa teratas ke siapa pun yang membuka game — set `PAPAN_PUBLIK = "0"` kalau tidak
+  diinginkan.
+- **Tampilan selalu terang.** Game tidak mengikuti mode gelap perangkat, jadi warna dan tata letaknya
+  sama di semua HP/tablet/laptop. Teks memakai Fredoka dari Google Fonts; tanpa internet, huruf jatuh ke
+  Trebuchet/system sehingga lebar teks bisa sedikit berbeda.
