@@ -5,7 +5,7 @@ compatibility_date = "2024-11-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pencernaan"
-database_id = "ISI_DENGAN_ID_D1"
+database_id = "3d150770-c310-4612-8655-29672c451d17"
 
 [vars]
 # Ganti dengan origin game-mu. Harus sama persis (tanpa garis miring di akhir).
