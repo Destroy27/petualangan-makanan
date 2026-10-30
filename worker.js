@@ -67,6 +67,7 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 </form>
 <div id="listMurid"></div>
 </div>
+<p class="hint" style="text-align:center;margin-top:14px;font-size:.75rem">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div>
 <script>
 var SKEY='pcn_admin',D=null;
