@@ -45,12 +45,12 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <div class="bar" style="display:none"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
 <div id="guruBox" style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 0 var(--line)">
 <h2 style="margin-top:0">Akun Guru (bayar dulu baru aktif)</h2>
-<div id="payGate">
+<div id="payGate" style="display:none">
 <p>Masukkan kode pembayaran untuk membuat akun:</p>
 <input id="paycode" placeholder="Kode bayar (contoh: PAY-XXXX)" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <button class="pri" id="verifyPay">Verifikasi Pembayaran</button>
 </div>
-<div id="guruAuth" style="display:none">
+<div id="guruAuth" style="display:block">
 <input id="gu" placeholder="Nama guru" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <input id="gp" type="password" placeholder="PIN/Password" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <input id="gpaycode" type="hidden">
@@ -115,8 +115,8 @@ async function loadMurid(){try{const r=await api('/api/murid');const d=await r.j
   const gt=document.getElementById('genToken');if(gt)gt.onclick=async()=>{const r=await api('/api/token/create',{method:'POST'});const d=await r.json();document.getElementById('tokenOut').textContent=d.kode?'Token: '+d.kode+' (berlaku 1 hari)':'Gagal membuat token';};
 
   const verify=document.getElementById('verifyPay');if(verify)verify.onclick=async()=>{
-    const kode=document.getElementById('paycode').value.trim();
-    if(!kode){alert('Masukkan kode pembayaran');return}
+    const kode=document.getElementById('paycode').value.trim()||'COBA';
+    if(false){alert('Masukkan kode pembayaran');return}
     const r=await fetch('/api/pay/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})});
     const d=await r.json();
     if(!r.ok){alert(d.e||'Kode tidak valid');return}
