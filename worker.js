@@ -8,9 +8,9 @@ const PAGE = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <style>
 :root{--bg:#fff7f3;--card:#fff;--ink:#3b2422;--mut:#7a5c57;--pri:#ff7a6b;--line:#f0dcd5;--warn:#fff3cd}
 *{box-sizing:border-box}
-body{margin:0;padding:18px;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
+body{margin:0;padding:18px;background:linear-gradient(135deg,#fff7f3 0%,#ffe4dc 100%);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1080px;margin:0 auto}
-h1{font-size:1.5rem;margin:0 0 4px}
+h1{font-size:1.8rem;margin:0 0 4px;text-align:center;color:var(--pri)}
 .hint{color:var(--mut);margin:0 0 14px;font-size:.9rem}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
 input[type=password]{flex:1 1 220px;min-width:0;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font:inherit;background:#fff;color:inherit}

@@ -51,7 +51,7 @@ h1{font-size:clamp(1.6rem,6vw,2.4rem);margin:8px 0 4px;text-align:center}
 #fb{margin-top:8px;font-weight:700;min-height:1.4em}
 .chip{border:3px solid var(--soft);background:var(--card);color:inherit;font:inherit;border-radius:99px;padding:6px 14px;margin:4px;cursor:pointer;transition:.15s}.chip.sel{background:var(--pri);border-color:var(--pri);color:#fff}.chip:disabled{opacity:.4}.pick{text-align:center;margin-bottom:10px}.pick b{display:block}
 input{display:block;width:100%;margin:8px 0;padding:12px;border-radius:14px;border:3px solid var(--soft);background:var(--card);color:inherit;font:inherit;text-align:center}
-.res{max-width:480px;margin:0 auto;background:var(--card);border-radius:24px;padding:18px;text-align:center;box-shadow:0 6px 0 var(--soft)}
+.res{max-width:480px;margin:0 auto;background:var(--card);border-radius:28px;padding:22px;text-align:center;box-shadow:0 12px 30px rgba(255,122,107,.18);border:2px solid var(--soft)}
 .res svg{width:110px;animation:wob 1.2s infinite}
 .big{font-size:3rem;font-weight:700;color:var(--pri);line-height:1}
 .row{display:flex;justify-content:space-between;padding:6px 10px;border-radius:10px;background:var(--soft);margin:5px 0;text-align:left}
@@ -233,8 +233,10 @@ $('panel').onclick=e=>{
 function finish(){clearTimer();SFX.win();save();sendLog();const max=Math.round(ST.length*100*levelFactor()),st=G.score>=max*.8?3:G.score>=max*.5?2:1;
  $('end').innerHTML=`${face(G.f)}<h1>Petualangan Selesai!</h1><div>${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div><div class="big">${G.score}</div><p>dari ${max} poin</p><p>🍽️ ${FACT[G.f.n]}</p>${TEAM.length?'<h2>👥 Skor anggota tim</h2>'+TEAM.map((n,i)=>'<div class="row"><span>'+esc(n)+'</span><b>'+G.ps[i]+'</b></div>').join(''):''}`+
   ST.map((s,i)=>`<div class="row"><span>${s.k}</span><b>${G.res[i]>0?'✅ +'+G.res[i]:'❌ 0'}</b></div>`).join('')+
-  `<button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;
- show('s-end');$('again').onclick=()=>{SFX.pop();document.querySelectorAll('.food').forEach(x=>x.classList.remove('sel'));$('go').disabled=true;showStart()}}
+  `<button class="btn" id="dl" style="margin-top:10px;background:#2fbf80">⬇ Unduh Hasil</button><button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;
+ show('s-end');
+ $('dl').onclick=()=>{const m=DB.get()[ME]||{};const rows=['Petualangan Makanan - Hasil','Nama: '+(m.name||''),'Kelas: '+(m.kelas||''),'Makanan: '+G.f.n,'Level: '+LVL,'Skor: '+G.score,''].concat(ST.map((s,i)=>s.k+': '+(G.res[i]>0?'+ '+G.res[i]:'0')));const blob=new Blob([rows.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hasil-petualangan.txt';a.click();SFX.pop()};
+ $('again').onclick=()=>{SFX.pop();document.querySelectorAll('.food').forEach(x=>x.classList.remove('sel'));$('go').disabled=true;showStart()}}
 </script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}</script>
 </body></html>
