@@ -1,0 +1,23 @@
+/* Palet ceria bersama + latar */
+:root{--bg:#fff5ec;--card:#fff;--ink:#3d2c4a;--mut:#8a6f7d;--pri:#ff7a59;--pri2:#e0563a;--line:#ffd9c4;--soft:#ffe9dc;--ok:#2fbf80;--bad:#ff5470;--sun:#ffc93c;--teal:#2ec4b6;--pink:#ff6fa5;--sky:#4cc9f0}
+body{font-family:Fredoka,"Trebuchet MS",system-ui,sans-serif;background:radial-gradient(circle at 10% 6%,rgba(255,122,89,.22),transparent 38%),radial-gradient(circle at 92% 10%,rgba(46,196,182,.18),transparent 36%),radial-gradient(circle at 75% 98%,rgba(255,201,60,.24),transparent 38%),var(--bg);background-attachment:fixed}
+/* Gaya bersama (index, game, panel guru): tombol imut 3D, kartu bulat, input ramah, maskot makanan. */
+.btn,button.pri,button.ghost,button.del,button.tab{font-family:Fredoka,system-ui,sans-serif;font-weight:700;border-radius:99px;cursor:pointer;transition:transform .15s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+button.pri,button.del{border:0;color:#fff;padding:12px 22px}
+button.pri{background:var(--pri);box-shadow:0 5px 0 var(--pri2,#e0563a)}
+button.del{background:var(--bad,#c97b7b);box-shadow:0 5px 0 rgba(0,0,0,.22)}
+button.ghost,button.tab{background:var(--card,#fff);color:var(--pri);border:2px solid var(--pri);box-shadow:0 4px 0 var(--soft,var(--line,#ffe3d3))}
+button.tab.on{background:var(--pri);color:#fff;box-shadow:0 4px 0 var(--pri2,#e0563a)}
+.btn:not(:disabled):hover,button.pri:not(:disabled):hover,button.ghost:not(:disabled):hover,button.del:not(:disabled):hover,button.tab:hover{transform:translateY(-2px) rotate(-1deg)}
+.btn:not(:disabled):active,button.pri:not(:disabled):active,button.del:not(:disabled):active{transform:translateY(4px) scale(.98);box-shadow:0 1px 0 var(--pri2,#e0563a)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.btn:active{box-shadow:0 2px 0 var(--pri2,#e0563a)}
+body input,body select,body textarea{border-radius:14px;border:3px solid var(--soft,var(--line,#ffe3d3));font:inherit;background:var(--card,#fff);color:inherit}
+body input:focus,body select:focus,body textarea:focus{outline:3px solid var(--pri);outline-offset:1px}
+.card{border-radius:26px}
+.mascots{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.mascots span{display:block;width:clamp(38px,9vw,54px);animation:uiwob 2.4s ease-in-out infinite;transform-origin:50% 90%}
+.mascots svg{display:block;width:100%}
+@keyframes uiwob{0%,100%{transform:scale(1,1) rotate(-3deg)}50%{transform:scale(1.08,.93) rotate(3deg)}}
+.uimute{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:8px;z-index:50;width:42px;height:42px;border-radius:50%;border:0;background:var(--card,#fff);box-shadow:0 3px 0 var(--soft,var(--line,#ffe3d3));font-size:1.15rem;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.mascots span{animation:none}}

@@ -49,6 +49,7 @@ Harga langganan tidak diatur di aplikasi. Pemilik bebas menentukan harga dan men
 |---|---|
 | `index.html` | Halaman awal untuk memilih peran siswa atau guru. |
 | `game-pencernaan.html` | Game lengkap dalam satu berkas. |
+| `ui.css`, `ui.js` | Gaya bersama: tombol imut, suara tombol, makanan berbentuk asli berwajah, tombol suara. Dipakai semua halaman. |
 | `admin.html` | Panel guru dan panel pemilik. |
 | `worker.js` | API Cloudflare Worker untuk akun, token, murid, soal, pembayaran, dan rekap. |
 | `schema.sql` | Skema D1: `users`, `murid`, `soal`, `token`, `kode_bayar`, `sesi`, `jawaban`. |

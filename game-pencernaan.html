@@ -3,11 +3,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Petualangan Makanan: Sistem Pencernaan</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#c9a96e">
+<meta name="theme-color" content="#ff7a59">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#faf6f0;--card:#fff;--ink:#4a3f35;--pri:#c9a96e;--ok:#8fae8b;--bad:#c97b7b;--soft:#f0e6d6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+:root{--bg:#fff5ec;--card:#fff;--ink:#3d2c4a;--pri:#ff7a59;--ok:#2fbf80;--bad:#ff5470;--soft:#ffe3d3;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *{box-sizing:border-box}
 body{margin:0;min-height:100%;font-family:Fredoka,"Trebuchet MS",system-ui,sans-serif;background:var(--bg);color:var(--ink);background-image:radial-gradient(circle at 15% 8%,var(--soft),transparent 45%)}
@@ -21,8 +21,8 @@ h1{font-size:clamp(1.6rem,6vw,2.4rem);margin:8px 0 4px;text-align:center}
 .food svg{width:80px;animation:wob 2.4s ease-in-out infinite}
 .food:hover{transform:translateY(-4px) rotate(-2deg)}
 .food.sel{border-color:var(--pri);transform:scale(1.05)}
-.btn{display:block;margin:0 auto;padding:14px 32px;border:0;border-radius:99px;background:var(--pri);color:#fff;font:700 1.15rem Fredoka,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 0 #a8895a;transition:.15s}
-.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #d9584b}
+.btn{display:block;margin:0 auto;padding:14px 32px;border:0;border-radius:99px;background:var(--pri);color:#fff;font:700 1.15rem Fredoka,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 0 #e0563a;transition:.15s}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 #e0563a}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 #hud{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border-radius:18px;padding:8px 14px;margin-bottom:10px;font-weight:700}
 #dots span{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--soft);margin:0 2px;transition:.3s}
@@ -78,7 +78,9 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 @media(max-width:900px){#app{padding:8px}#play{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map steps" "panel panel";grid-template-rows:auto auto;gap:10px}#map{height:min(40vh,50vw)}#steps{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center}.stp{font-size:.75rem;padding:4px 9px;transform-origin:left center}.stp.on{transform:none}#stepsTop{display:none}#panel{overflow:visible}#qbody{flex:0 0 auto;overflow:visible}#qin{min-height:0;justify-content:flex-start}}
 @media(max-width:600px){#map{height:44vh}.stp{font-size:.72rem;padding:4px 8px}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
-</style></head>
+</style><link rel="stylesheet" href="ui.css">
+<script src="ui.js"></script>
+</head>
 <body><div id="app">
 
 <section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masukkan token akses dari guru (Rp 10.000 / hari)</p><div class="res">
@@ -165,14 +167,17 @@ const SFX={
  munch:()=>[0,.16,.32].forEach(s=>tone(190,.09,'square',.07,s,90)),
  win:()=>[523,659,784,1047,784,1047].forEach((f,i)=>tone(f,.22,'triangle',.18,i*.13))};
 // ---------- Karakter lucu ----------
-const face=f=>`<svg viewBox="0 0 100 100"><path d="M50 8C75 6 94 26 92 52 90 78 72 94 50 94 28 94 8 78 8 52 6 26 25 10 50 8Z" fill="${f.c}" stroke="#5a3a36" stroke-width="4"/><circle cx="36" cy="56" r="8" fill="#fff"/><circle cx="64" cy="56" r="8" fill="#fff"/><circle cx="37" cy="57" r="4.5" fill="#3b2321"/><circle cx="65" cy="57" r="4.5" fill="#3b2321"/><circle cx="35" cy="55" r="1.6" fill="#fff"/><circle cx="63" cy="55" r="1.6" fill="#fff"/><ellipse cx="24" cy="70" rx="7" ry="4" fill="#ff8fa3" opacity=".75"/><ellipse cx="76" cy="70" rx="7" ry="4" fill="#ff8fa3" opacity=".75"/><path d="M41 72Q50 83 59 72" stroke="#3b2321" stroke-width="4" fill="none" stroke-linecap="round"/><text x="50" y="40" font-size="28" text-anchor="middle">${f.e}</text></svg>`;
+const faceOld=f=>`<svg viewBox="0 0 100 100"><path d="M50 8C75 6 94 26 92 52 90 78 72 94 50 94 28 94 8 78 8 52 6 26 25 10 50 8Z" fill="${f.c}" stroke="#5a3a36" stroke-width="4"/><circle cx="36" cy="56" r="8" fill="#fff"/><circle cx="64" cy="56" r="8" fill="#fff"/><circle cx="37" cy="57" r="4.5" fill="#3b2321"/><circle cx="65" cy="57" r="4.5" fill="#3b2321"/><circle cx="35" cy="55" r="1.6" fill="#fff"/><circle cx="63" cy="55" r="1.6" fill="#fff"/><ellipse cx="24" cy="70" rx="7" ry="4" fill="#ff8fa3" opacity=".75"/><ellipse cx="76" cy="70" rx="7" ry="4" fill="#ff8fa3" opacity=".75"/><path d="M41 72Q50 83 59 72" stroke="#3b2321" stroke-width="4" fill="none" stroke-linecap="round"/><text x="50" y="40" font-size="28" text-anchor="middle">${f.e}</text></svg>`;
+const face=f=>window.UI?UI.food(f.n):faceOld(f);
 // ---------- State ----------
 let G={};
 const show=id=>{document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))};
 $('foods').innerHTML=FOODS.map((f,i)=>`<button class="food" data-i="${i}">${face(f)}<div>${f.n}</div></button>`).join('');
 $('foods').onclick=e=>{const b=e.target.closest('.food');if(!b)return;SFX.pop();G.f=FOODS[b.dataset.i];
  document.querySelectorAll('.food').forEach(x=>x.classList.toggle('sel',x===b));$('go').disabled=false};
-$('snd').onclick=()=>{mute=!mute;$('snd').textContent=mute?'🔇':'🔊';try{speechSynthesis.cancel()}catch(e){}};
+try{mute=localStorage.getItem('pcn_mute')=='1'}catch(e){}
+$('snd').textContent=mute?'🔇':'🔊';
+$('snd').onclick=()=>{mute=!mute;$('snd').textContent=mute?'🔇':'🔊';if(window.UI)UI.mute(mute);try{speechSynthesis.cancel()}catch(e){}};
 $('go').onclick=()=>{TEAM=MODEG=='tim'?$('tn').value.split(',').map(s=>s.trim().slice(0,14)).filter(Boolean).slice(0,4):[];if(MODEG=='tim'&&TEAM.length<2){alert('Tim butuh minimal 2 anggota. Tulis nama dipisah koma.');return}G={f:G.f,i:0,score:0,res:[],ps:TEAM.map(()=>0),log:[]};$('blob').innerHTML=face(G.f);$('hf').textContent=G.f.e+' '+G.f.n;
  const b=$('blob');b.style.transition='none';b.style.left='36%';b.style.top='2%';void b.offsetWidth;b.style.transition='';
  show('s-game');SFX.pop();hud();enter(0)};

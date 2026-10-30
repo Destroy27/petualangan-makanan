@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel Guru - Petualangan Makanan</title>
 <style>
-:root{--bg:#faf6f0;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#c9a96e;--pri2:#a8895a;--line:#f0e6d6;--ok:#5b8c5a;--bad:#b5654f;--soft:#fffaf3}
+:root{--bg:#fff5ec;--card:#fff;--ink:#3d2c4a;--mut:#7a6a5a;--pri:#ff7a59;--pri2:#e0563a;--line:#ffe3d3;--ok:#2fbf80;--bad:#ff5470;--soft:#fffaf3}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;min-height:100vh;background:linear-gradient(135deg,#fff7f3 0%,#faf6f0 45%,#f3ead9 100%);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#fff7f3 0%,#fff5ec 45%,#f3ead9 100%);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:980px;margin:0 auto;padding:22px 16px 40px}
 header{text-align:center;margin-bottom:18px}
 header h1{margin:0;font-size:1.7rem;color:var(--pri2);letter-spacing:.01em}
 header p{margin:4px 0 0;color:var(--mut);font-size:.9rem}
-.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(201,169,110,.10);margin-bottom:14px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(255,122,89,.14);margin-bottom:14px}
 .card h2{margin:0 0 4px;font-size:1.05rem}
 .card .sub{margin:0 0 12px;color:var(--mut);font-size:.86rem}
 .auth{max-width:430px;margin:0 auto}
@@ -66,16 +66,21 @@ th{color:var(--mut);font-size:.72rem;text-transform:uppercase;letter-spacing:.04
 td.num,th.num{text-align:right}
 footer{text-align:center;color:var(--mut);font-size:.75rem;margin-top:22px}
 footer a{color:var(--pri2)}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#4a3f35;color:#fff;padding:11px 18px;border-radius:12px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#3d2c4a;color:#fff;padding:11px 18px;border-radius:12px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
 .toast.on{opacity:1}
 .ownerBox{max-width:520px}
 .ownerOut{font-family:ui-monospace,Consolas,monospace;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin-top:10px}
 @media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}}
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
+<link rel="stylesheet" href="admin.css">
+<script src="ui.js"></script>
 </head>
 <body>
 <div class="wrap">
 <header>
+  <div class="mascots" data-mascots></div>
   <h1>Petualangan Makanan</h1>
   <p>Panel guru: kelola murid, soal, token akses, dan nilai.</p>
 </header>
@@ -115,14 +120,14 @@ footer a{color:var(--pri2)}
 
   <div class="grid">
     <section class="card">
-      <h2>Token akses siswa</h2>
+      <h2>🎟️ Token akses siswa</h2>
       <p class="sub">Bagikan token ini ke siswa. Token berlaku sampai besok, satu token untuk semua murid.</p>
       <button class="pri needActive" id="btnToken" type="button">Buat token hari ini</button>
       <div id="tokenBox"></div>
     </section>
 
     <section class="card">
-      <h2>Langganan</h2>
+      <h2>⭐ Langganan</h2>
       <p class="sub" id="renewHint">Perpanjang masa aktif dengan kode aktivasi.</p>
       <div class="row">
         <label>Kode perpanjangan<input id="renewKode" placeholder="PCN-XXXX-XXXX"></label>
@@ -137,7 +142,7 @@ footer a{color:var(--pri2)}
   </div>
 
   <section class="card">
-    <h2>Murid <span id="muridCount" class="hint" style="font-weight:400"></span></h2>
+    <h2>🧒 Murid <span id="muridCount" class="hint" style="font-weight:400"></span></h2>
     <p class="sub">Maksimal 50 murid per akun guru.</p>
     <form id="formMurid" class="row">
       <label>Nama murid<input id="muridNama" placeholder="Nama lengkap" required></label>
@@ -149,7 +154,7 @@ footer a{color:var(--pri2)}
   </section>
 
   <section class="card">
-    <h2>Soal tambahan</h2>
+    <h2>📝 Soal tambahan</h2>
     <p class="sub">Soal ini otomatis masuk ke game sesuai organ dan level. Soal bawaan tetap ada.</p>
     <form id="formSoal" class="grid2">
       <label>Organ
@@ -179,7 +184,7 @@ footer a{color:var(--pri2)}
   </section>
 
   <section class="card">
-    <h2>Rekap nilai</h2>
+    <h2>📊 Rekap nilai</h2>
     <p class="sub">Nilai semua murid, per kelas, dan per materi.</p>
     <div class="row">
       <button class="pri" id="btnRekap" type="button">Muat rekap</button>
@@ -196,7 +201,7 @@ footer a{color:var(--pri2)}
 </footer>
 
 <section id="ownerBox" class="card ownerBox" hidden style="margin:18px auto 0">
-  <h2>Panel pemilik</h2>
+  <h2>🔑 Panel pemilik</h2>
   <p class="sub">Buat kode aktivasi untuk guru setelah pembayaran. Kunci admin tidak disimpan.</p>
   <label>Kunci admin<input id="ownerKey" type="password" autocomplete="off" placeholder="ADMIN_KEY"></label>
   <div class="row">
@@ -254,6 +259,7 @@ footer a{color:var(--pri2)}
     var t = $('toast');
     t.textContent = text;
     t.classList.add('on');
+    if (window.UI) UI.sfx.ok();
     clearTimeout(toast.timer);
     toast.timer = setTimeout(function () { t.classList.remove('on'); }, 2600);
   }
@@ -261,6 +267,7 @@ footer a{color:var(--pri2)}
     var e = $(id);
     e.textContent = text || '';
     e.className = 'msg ' + (ok ? 'ok' : text ? 'bad' : '');
+    if (window.UI && text) (ok ? UI.sfx.ok() : UI.sfx.bad());
   }
 
   async function api(path, opt) {
