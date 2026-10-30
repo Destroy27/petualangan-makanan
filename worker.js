@@ -149,7 +149,7 @@ async function loadMurid(){try{const r=await api('/api/murid');const d=await r.j
     if(r.ok){document.getElementById('guruPay').style.display='none';document.getElementById('guruDash').style.display='block';document.getElementById('manage').hidden=false;loadSoal();loadMurid();alert('Aktif!')}
     else alert(d.e||'Kode salah');
   };
-});
+})();
 async function load(){
  var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
  el('msg').textContent='Memuat…';
