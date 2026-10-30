@@ -46,6 +46,27 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <p class="msg" id="msg"></p>
 <div class="bar2" id="bar2" hidden><label>Kelas <select id="f"><option value="">Semua kelas</option></select></label><span class="hint" style="margin:0">Peringkat diurutkan dari skor terbaik.</span></div>
 <div id="o"></div>
+<div id="manage" hidden>
+<h2>Kelola Soal</h2>
+<form id="fsoal" style="display:grid;gap:8px;max-width:520px;margin-bottom:10px">
+<input id="so_organ" placeholder="Organ (mis. Mulut)" required>
+<input id="so_level" type="number" min="0" max="2" placeholder="Level (0=Pemula,1=Jagoan,2=Master)" value="1">
+<input id="so_q" placeholder="Pertanyaan" required>
+<input id="so_opsi" placeholder="Opsi (pisah | , mis. A|B|C|D)" required>
+<input id="so_jaw" type="number" min="0" placeholder="Indeks jawaban benar (0-based)" required>
+<input id="so_pemb" placeholder="Pembahasan">
+<button class="pri" type="submit">Tambah Soal</button>
+</form>
+<div id="listSoal"></div>
+<h2>Kelola Akun Murid</h2>
+<form id="fmurid" style="display:grid;gap:8px;max-width:520px;margin-bottom:10px">
+<input id="mu_nama" placeholder="Nama" required>
+<input id="mu_kelas" placeholder="Kelas">
+<input id="mu_pin" placeholder="PIN" required>
+<button class="pri" type="submit">Tambah Murid</button>
+</form>
+<div id="listMurid"></div>
+</div>
 </div>
 <script>
 var SKEY='pcn_admin',D=null;
@@ -57,6 +78,13 @@ function tr(cells,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'>'+cells.map(fu
 function key(){return el('k').value.trim()}
 function kelasOf(x){return x.kelas||'(tanpa kelas)'}
 
+async function api(path,init){const k=key();return fetch(path,Object.assign({},init,{headers:Object.assign({'Authorization':'Bearer '+k},init&&init.headers||{})}))}
+async function loadSoal(){try{const r=await fetch('/api/soal');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listSoal').innerHTML=list.map(s=>'<div class="row"><span>'+E(s.organ)+' L'+s.level+' — '+E(s.pertanyaan)+'</span><button data-id="'+s.id+'" class="rm delSoal">Hapus</button></div>').join('')||'<div class="empty">Belum ada soal.</div>';el('listSoal').querySelectorAll('.delSoal').forEach(b=>b.onclick=async()=>{await api('/api/soal?id='+b.dataset.id,{method:'DELETE'});loadSoal()})}catch(e){}}
+async function loadMurid(){try{const r=await api('/api/murid');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listMurid').innerHTML=list.map(m=>'<div class="row"><span>'+E(m.nama)+' · '+E(m.kelas||'-')+'</span><button data-id="'+m.id+'" class="rm delMurid">Hapus</button></div>').join('')||'<div class="empty">Belum ada murid.</div>';el('listMurid').querySelectorAll('.delMurid').forEach(b=>b.onclick=async()=>{await api('/api/murid?id='+b.dataset.id,{method:'DELETE'});loadMurid()})}catch(e){}}
+(function(){
+  const fs=document.getElementById('fsoal');if(fs)fs.onsubmit=async(e)=>{e.preventDefault();const opsi=document.getElementById('so_opsi').value.split('|').map(x=>x.trim());await api('/api/soal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organ:document.getElementById('so_organ').value,level:+document.getElementById('so_level').value,pertanyaan:document.getElementById('so_q').value,opsi:JSON.stringify(opsi),jawaban:+document.getElementById('so_jaw').value,pembahasan:document.getElementById('so_pemb').value})});fs.reset();loadSoal()};
+  const fm=document.getElementById('fmurid');if(fm)fm.onsubmit=async(e)=>{e.preventDefault();await api('/api/murid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:document.getElementById('mu_nama').value,kelas:document.getElementById('mu_kelas').value,pin:document.getElementById('mu_pin').value})});fm.reset();loadMurid()};
+});
 async function load(){
  var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
  el('msg').textContent='Memuat…';
@@ -68,8 +96,10 @@ async function load(){
   try{sessionStorage.setItem(SKEY,k)}catch(e){}
   el('csv').disabled=false;
   fillKelas();
+  el('manage').hidden=false;
   el('msg').textContent='Terakhir dimuat '+new Date().toLocaleTimeString('id-ID')+' · '+N((D.siswa||[]).length)+' siswa, '+N((D.ringkasan&&D.ringkasan[0]?D.ringkasan[0].sesi:0))+' sesi';
   render();
+  loadSoal();loadMurid();
  }catch(e){el('msg').textContent='Gagal menghubungi server. Cek koneksi lalu coba lagi.'}
 }
 
@@ -202,6 +232,61 @@ export default {
         });
       } catch (e) {
         return J({ e: 'db' }, 500);
+      }
+    }
+
+    // Kelola soal (guru). GET publik untuk game, POST/DELETE butuh kunci admin.
+    if (u.pathname === '/api/soal') {
+      if (req.method === 'GET') {
+        try {
+          const r = await env.DB.prepare('SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal ORDER BY id DESC').all();
+          return J({ list: r.results || [] });
+        } catch (e) { return J({ list: [] }); }
+      }
+      if (req.method === 'POST') {
+        if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+        let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+        const organ = cut(d.organ, 20).trim();
+        const pertanyaan = cut(d.pertanyaan, 300).trim();
+        if (!organ || !pertanyaan) return J({ e: 'data' }, 400);
+        try {
+          const r = await env.DB.prepare('INSERT INTO soal(organ,level,pertanyaan,opsi,jawaban,pembahasan) VALUES(?,?,?,?,?,?)')
+            .bind(organ, +d.level || 1, pertanyaan, cut(d.opsi, 500), +d.jawaban || 0, cut(d.pembahasan, 300)).run();
+          return J({ ok: 1, id: r.meta.last_row_id });
+        } catch (e) { return J({ e: 'db' }, 500); }
+      }
+      if (req.method === 'DELETE') {
+        if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+        const id = +u.searchParams.get('id');
+        if (!id) return J({ e: 'id' }, 400);
+        try { await env.DB.prepare('DELETE FROM soal WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
+        catch (e) { return J({ e: 'db' }, 500); }
+      }
+    }
+    // Kelola akun murid (guru)
+    if (u.pathname === '/api/murid') {
+      if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+      if (req.method === 'GET') {
+        try {
+          const r = await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid ORDER BY nama').all();
+          return J({ list: r.results || [] });
+        } catch (e) { return J({ list: [] }); }
+      }
+      if (req.method === 'POST') {
+        let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+        const nama = cut(d.nama, 30).trim();
+        if (!nama) return J({ e: 'nama' }, 400);
+        try {
+          const r = await env.DB.prepare('INSERT INTO murid(nama,kelas,pin) VALUES(?,?,?)')
+            .bind(nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
+          return J({ ok: 1, id: r.meta.last_row_id });
+        } catch (e) { return J({ e: 'db' }, 500); }
+      }
+      if (req.method === 'DELETE') {
+        const id = +u.searchParams.get('id');
+        if (!id) return J({ e: 'id' }, 400);
+        try { await env.DB.prepare('DELETE FROM murid WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
+        catch (e) { return J({ e: 'db' }, 500); }
       }
     }
 

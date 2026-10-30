@@ -79,7 +79,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 </style></head>
 <body><div id="app">
 
-<section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masuk atau buat akun agar skormu tersimpan</p><div class="res"><input id="un" placeholder="Nama pengguna" maxlength="16"><input id="pw" type="password" inputmode="numeric" placeholder="PIN 4 angka" maxlength="4"><input id="kl" placeholder="Kelas (opsional, mis. X-1)" maxlength="10"><button class="btn" id="lg">Masuk / Daftar</button><p id="lm" class="sub" style="margin-top:8px"></p><div id="lb"></div></div></section>
+<section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masuk atau buat akun agar skormu tersimpan</p><div class="res"><input id="un" placeholder="Nama pengguna" maxlength="16"><input id="pw" type="password" inputmode="numeric" placeholder="PIN 4 angka" maxlength="4"><input id="kl" placeholder="Kelas (opsional, mis. X-1)" maxlength="10"><button class="btn" id="lg">Masuk / Daftar</button><p id="lm" class="sub" style="margin-top:8px"></p><p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru</a></p><div id="lb"></div></div></section>
 <section id="s-start" class="screen">
  <h1>🍽️ Petualangan Makanan</h1>
  <p class="sub">Pilih makananmu, lalu temani dia berpetualang di sistem pencernaan!</p>
@@ -88,7 +88,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 </section>
 
 <section id="s-game" class="screen">
- <div id="hud"><span id="hf"></span><span id="dots"></span><span id="hs">⭐ 0</span><span id="hl"></span><button id="snd" title="Suara">🔊</button></div>
+ <div id="hud"><span id="hf"></span><span id="dots"></span><span id="hs">⭐ 0</span><span id="hl"></span><span id="ht">⏱️ 30</span><button id="snd" title="Suara">🔊</button></div>
  <div id="play">
   <div id="map"><div id="cam"><div id="ring"></div><div id="tag"></div><div id="blob"></div></div></div>
   <div id="steps"></div><div id="panel"><div id="stepsTop"></div><div id="qbody"><div id="qin"></div></div></div>
@@ -182,7 +182,7 @@ $('out').onclick=()=>{ME=null;board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=()=>{pickVoice();vstat()}}
-vstat();board();
+vstat();board();if(API_URL){const g=$('guruLink');if(g)g.href=API_URL+'/admin'}else{const g=$('guruLink');if(g)g.style.display='none'}
 function cam(s,x,y){const c=Math.min(0,Math.max(100-100*s,50-s*x)),d=Math.min(0,Math.max(100-100*s,50-s*y));$('cam').style.transform=`translate(${c}%,${d}%) scale(${s})`}
 function speak(t,f){try{if(mute||!('speechSynthesis' in window)||(MODE==0&&!f))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='id-ID';if(VOI)u.voice=VOI;u.rate=.95;u.pitch=1.1;speechSynthesis.speak(u)}catch(e){}}
 function vlist(){try{return speechSynthesis.getVoices().filter(v=>/^id([-_]|$)/i.test(v.lang)||/indonesia/i.test(v.name))}catch(e){return[]}}
@@ -198,24 +198,28 @@ function hud(){if(G.i!=null){const h=ST.map((s,i)=>'<span class="stp '+(i<G.i?'d
  $('dots').innerHTML=ST.map((s,i)=>`<span class="${i<G.i?'d':i==G.i?'c':''}"></span>`).join('')}
 function move(path,cb){let n=0;(function step(){if(n>=path.length)return cb&&cb();const[p,q]=path[n++];
  $('blob').style.left=p+'%';$('blob').style.top=q+'%';setTimeout(step,780)})()}
-function enter(i){const st=ST[i];G.i=i;G.lives=null;hud();
+function enter(i){clearTimer();const st=ST[i];G.i=i;G.lives=null;hud();
  $('qin').innerHTML='<div class="intro">🚚 Sedang bergerak menuju <b>'+st.k+'</b>...</div>';$('qbody').scrollTop=0;cam(1,50,50);if(innerWidth<=900)scrollTo({top:0,behavior:'smooth'});try{speechSynthesis.cancel()}catch(e){}
  $('ring').style.left=st.x+'%';$('ring').style.top=st.y+'%';
  $('tag').textContent=st.k;$('tag').style.left=st.x+'%';$('tag').style.top=`calc(${st.y}% - 3.3rem)`;
  if(i>0)SFX.gulp();
  move([...st.via,[st.x,st.y]],()=>{i==0?SFX.munch():SFX.pop();ask()})}
-function ask(){const st=ST[G.i];G.lives=3;const pool=LVL==0?X[G.i].m:LVL==2?X[G.i].s:st.q;G.q=pool[Math.random()*pool.length|0];G.hint=0;hud();cam(2,st.x,st.y);
+function levelFactor(){return [0.8,1,1.5][LVL]||1}
+function clearTimer(){if(G.tid){clearInterval(G.tid);G.tid=null}}
+function startTimer(){clearTimer();G.timeLeft=[45,30,20][LVL]||30;const el=$('ht');if(el)el.textContent='⏱️ '+G.timeLeft;G.tid=setInterval(()=>{G.timeLeft--;const e=$('ht');if(e)e.textContent='⏱️ '+G.timeLeft;if(G.timeLeft<=0){clearTimer();onTimeout()}},1000)}
+function onTimeout(){if(G.lives<=0) return;G.lives=0;G.done=true;document.querySelectorAll('.opt').forEach(x=>{x.disabled=true;if(+x.dataset.i===G.q[2])x.classList.add('ok')});const f=$('fb');if(f){f.textContent='⏰ Waktu habis, poin 0. Jawaban benar ditandai hijau.';f.style.color='var(--bad)'}done(0)}
+function ask(){const st=ST[G.i];G.lives=3;G.done=false;const pool=LVL==0?X[G.i].m:LVL==2?X[G.i].s:st.q;G.q=pool[Math.random()*pool.length|0];G.hint=0;hud();cam(2,st.x,st.y);
  const o=G.q[1].map((t,i)=>[t,i]).sort(()=>Math.random()-.5);
- $('qin').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button><div id="fb"></div>`;$('qbody').scrollTop=0;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'})}
+ $('qin').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button><div id="fb"></div>`;$('qbody').scrollTop=0;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'});startTimer()}
 function burst(x,y,a){for(let i=0;i<14;i++){const s=document.createElement('span');s.className='cf';s.textContent=a[i%a.length];
  s.style.left=x+'%';s.style.top=y+'%';s.style.setProperty('--dx',(Math.random()*180-90)+'px');s.style.setProperty('--dy',(Math.random()*-150-20)+'px');
  $('cam').appendChild(s);setTimeout(()=>s.remove(),1000)}}
-function done(pts){G.score+=pts;G.res.push(pts);(G.log=G.log||[]).push({o:ST[G.i].k,p:TEAM.length?TEAM[G.i%TEAM.length]:'',s:3-G.lives,h:G.hint,pt:pts,q:G.q[0]});if(TEAM.length)G.ps[G.i%TEAM.length]+=pts;hud();speak('Jawaban benar: '+G.q[1][G.q[2]]+'. '+X[G.i].d);$('fb').insertAdjacentHTML('afterend','<div class="intro" style="margin-top:10px">📘 Pembahasan: jawaban benar = <b>'+G.q[1][G.q[2]]+'</b>. '+X[G.i].d+(G.i==3?'<small>🍽️ Khusus '+G.f.n+': '+FACT[G.f.n]+'</small>':'')+'</div>');const last=G.i==ST.length-1;
+function done(pts){clearTimer();G.done=true;G.score+=pts;G.res.push(pts);(G.log=G.log||[]).push({o:ST[G.i].k,p:TEAM.length?TEAM[G.i%TEAM.length]:'',s:3-G.lives,h:G.hint,pt:pts,q:G.q[0]});if(TEAM.length)G.ps[G.i%TEAM.length]+=pts;hud();speak('Jawaban benar: '+G.q[1][G.q[2]]+'. '+X[G.i].d);$('fb').insertAdjacentHTML('afterend','<div class="intro" style="margin-top:10px">📘 Pembahasan: jawaban benar = <b>'+G.q[1][G.q[2]]+'</b>. '+X[G.i].d+(G.i==3?'<small>🍽️ Khusus '+G.f.n+': '+FACT[G.f.n]+'</small>':'')+'</div>');const last=G.i==ST.length-1;
  $('qin').insertAdjacentHTML('beforeend',`<button class="btn" id="next" style="margin-top:12px">${last?'Lihat Hasil 🎉':'Lanjut ➜'}</button>`);setTimeout(()=>{const n=$('next');if(n&&n.scrollIntoView)n.scrollIntoView({block:'nearest'})},60)}
 $('panel').onclick=e=>{
  if(e.target.id=='say'){speak(G.sp,1);return}if(e.target.id=='hint'){if(G.hint||G.lives<=0)return;const w=[...document.querySelectorAll('.opt:not(:disabled)')].filter(x=>+x.dataset.i!==G.q[2]);if(w.length>1){const x=w[Math.random()*w.length|0];x.disabled=true;x.style.opacity=.35;G.hint=1;e.target.disabled=true;SFX.pop()}return}const nx=e.target.closest('#next');if(nx){nx.disabled=true;G.i==ST.length-1?finish():enter(G.i+1);return}
  const b=e.target.closest('.opt');if(!b||b.disabled||G.lives<=0)return;const st=ST[G.i],ok=+b.dataset.i===G.q[2];
- if(ok){const pts=Math.max(10,[0,40,70,100][G.lives]-(G.hint?20:0));SFX.ok();b.classList.add('ok');burst(st.x,st.y,['⭐','✨','🎉','💖']);
+ if(ok){const pts=Math.max(10,Math.round([0,40,70,100][G.lives]*levelFactor())-(G.hint?20:0));SFX.ok();b.classList.add('ok');burst(st.x,st.y,['⭐','✨','🎉','💖']);
   document.querySelectorAll('.opt').forEach(x=>x.disabled=true);
   $('fb').textContent=`✅ Benar! +${pts} poin`;$('fb').style.color='var(--ok)';done(pts)}
  else{G.lives--;SFX.bad();b.classList.add('no');b.disabled=true;hud();
@@ -223,7 +227,7 @@ $('panel').onclick=e=>{
   if(G.lives>0){$('fb').textContent=`Ups, belum tepat. Sisa nyawa: ${G.lives}`;$('fb').style.color='var(--bad)'}
   else{document.querySelectorAll('.opt').forEach(x=>{x.disabled=true;if(+x.dataset.i===G.q[2])x.classList.add('ok')});
    $('fb').textContent='Nyawa habis, poin 0. Jawaban benar ditandai hijau.';$('fb').style.color='var(--bad)';done(0)}}};
-function finish(){SFX.win();save();sendLog();const max=ST.length*100,st=G.score>=max*.8?3:G.score>=max*.5?2:1;
+function finish(){clearTimer();SFX.win();save();sendLog();const max=Math.round(ST.length*100*levelFactor()),st=G.score>=max*.8?3:G.score>=max*.5?2:1;
  $('end').innerHTML=`${face(G.f)}<h1>Petualangan Selesai!</h1><div>${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div><div class="big">${G.score}</div><p>dari ${max} poin</p><p>🍽️ ${FACT[G.f.n]}</p>${TEAM.length?'<h2>👥 Skor anggota tim</h2>'+TEAM.map((n,i)=>'<div class="row"><span>'+esc(n)+'</span><b>'+G.ps[i]+'</b></div>').join(''):''}`+
   ST.map((s,i)=>`<div class="row"><span>${s.k}</span><b>${G.res[i]>0?'✅ +'+G.res[i]:'❌ 0'}</b></div>`).join('')+
   `<button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;

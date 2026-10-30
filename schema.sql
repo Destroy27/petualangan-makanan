@@ -17,3 +17,14 @@ CREATE TABLE IF NOT EXISTS jawaban(
 CREATE INDEX IF NOT EXISTS idx_sesi_nama ON sesi(nama, kelas);
 CREATE INDEX IF NOT EXISTS idx_jawaban_sesi ON jawaban(sesi_id);
 CREATE INDEX IF NOT EXISTS idx_jawaban_organ ON jawaban(organ);
+
+CREATE TABLE IF NOT EXISTS soal(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  organ TEXT, level INTEGER DEFAULT 1,
+  pertanyaan TEXT, opsi TEXT, jawaban INTEGER, pembahasan TEXT
+);
+
+CREATE TABLE IF NOT EXISTS murid(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nama TEXT, kelas TEXT, pin TEXT
+);
