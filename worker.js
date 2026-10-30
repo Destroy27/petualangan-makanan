@@ -42,7 +42,24 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 </style></head><body><div class="wrap">
 <h1>🍽️ Rekap Petualangan Makanan</h1>
 <p class="hint">Nilai semua siswa, per kelas, dan per materi. Kunci admin hanya disimpan di tab ini, tidak pernah dikirim ke mana pun selain server ini.</p>
-<div class="bar"><input id="k" type="password" placeholder="Kunci admin" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
+<div class="bar"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
+<div id="guruBox" style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 0 var(--line)">
+<h2 style="margin-top:0">Akun Guru (bayar dulu baru aktif)</h2>
+<div id="guruAuth">
+<input id="gu" placeholder="Nama guru" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
+<input id="gp" type="password" placeholder="PIN/Password" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
+<button id="greg">Daftar Guru</button>
+<button class="pri" id="glogin">Masuk Guru</button>
+</div>
+<div id="guruPay" style="display:none;margin-top:10px">
+<p>Masukkan kode pembayaran untuk aktivasi (max 50 siswa):</p>
+<input id="gpaycode" placeholder="Kode bayar" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
+<button class="pri" id="gpay">Aktifkan</button>
+</div>
+<div id="guruDash" style="display:none;margin-top:10px">
+<p id="guruInfo"></p>
+</div>
+</div>
 <p class="msg" id="msg"></p>
 <div class="bar2" id="bar2" hidden><label>Kelas <select id="f"><option value="">Semua kelas</option></select></label><span class="hint" style="margin:0">Peringkat diurutkan dari skor terbaik.</span></div>
 <div id="o"></div>
@@ -73,7 +90,8 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <p class="hint" style="text-align:center;margin-top:14px;font-size:.75rem">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div>
 <script>
-var SKEY='pcn_admin',D=null;
+var SKEY='pcn_admin',D=null,GURU_TOKEN=sessionStorage.getItem('guru_token')||'';
+function authToken(){return GURU_TOKEN||key()}
 function el(i){return document.getElementById(i)}
 function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function N(v){var x=+v||0;return x.toLocaleString('id-ID')}
@@ -82,13 +100,39 @@ function tr(cells,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'>'+cells.map(fu
 function key(){return el('k').value.trim()}
 function kelasOf(x){return x.kelas||'(tanpa kelas)'}
 
-async function api(path,init){const k=key();return fetch(path,Object.assign({},init,{headers:Object.assign({'Authorization':'Bearer '+k},init&&init.headers||{})}))}
+async function api(path,init){const k=authToken();return fetch(path,Object.assign({},init,{headers:Object.assign({'Authorization':'Bearer '+k},init&&init.headers||{})}))}
 async function loadSoal(){try{const r=await fetch('/api/soal');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listSoal').innerHTML=list.map(s=>'<div class="row"><span>'+E(s.organ)+' L'+s.level+' — '+E(s.pertanyaan)+'</span><button data-id="'+s.id+'" class="rm delSoal">Hapus</button></div>').join('')||'<div class="empty">Belum ada soal.</div>';el('listSoal').querySelectorAll('.delSoal').forEach(b=>b.onclick=async()=>{await api('/api/soal?id='+b.dataset.id,{method:'DELETE'});loadSoal()})}catch(e){}}
 async function loadMurid(){try{const r=await api('/api/murid');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listMurid').innerHTML=list.map(m=>'<div class="row"><span>'+E(m.nama)+' · '+E(m.kelas||'-')+'</span><button data-id="'+m.id+'" class="rm delMurid">Hapus</button></div>').join('')||'<div class="empty">Belum ada murid.</div>';el('listMurid').querySelectorAll('.delMurid').forEach(b=>b.onclick=async()=>{await api('/api/murid?id='+b.dataset.id,{method:'DELETE'});loadMurid()})}catch(e){}}
 (function(){
   const fs=document.getElementById('fsoal');if(fs)fs.onsubmit=async(e)=>{e.preventDefault();const opsi=document.getElementById('so_opsi').value.split('|').map(x=>x.trim());await api('/api/soal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organ:document.getElementById('so_organ').value,level:+document.getElementById('so_level').value,pertanyaan:document.getElementById('so_q').value,opsi:JSON.stringify(opsi),jawaban:+document.getElementById('so_jaw').value,pembahasan:document.getElementById('so_pemb').value})});fs.reset();loadSoal()};
   const fm=document.getElementById('fmurid');if(fm)fm.onsubmit=async(e)=>{e.preventDefault();await api('/api/murid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:document.getElementById('mu_nama').value,kelas:document.getElementById('mu_kelas').value,pin:document.getElementById('mu_pin').value})});fm.reset();loadMurid()};
   const gt=document.getElementById('genToken');if(gt)gt.onclick=async()=>{const r=await api('/api/token/create',{method:'POST'});const d=await r.json();document.getElementById('tokenOut').textContent=d.kode?'Token: '+d.kode+' (berlaku 1 hari)':'Gagal membuat token';};
+
+  const glogin=document.getElementById('glogin');const greg=document.getElementById('greg');
+  async function guruLogin(register=false){
+    const nama=document.getElementById('gu').value.trim();const pin=document.getElementById('gp').value.trim();const kelas=document.getElementById('gk').value.trim();
+    if(!nama||!pin){document.getElementById('lm')?0:0;alert('Isi nama dan PIN');return}
+    const path=register?'/api/auth/register':'/api/auth/login';
+    const body=register?{nama,pin,kelas,role:'guru'}:{nama,pin};
+    const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok){alert(d.e||'Gagal');return}
+    const token=register?d.token:d.user.token;
+    const paid=register?0:(d.user.paid||0);
+    GURU_TOKEN=token;sessionStorage.setItem('guru_token',token);
+    document.getElementById('guruAuth').style.display='none';
+    if(!paid){document.getElementById('guruPay').style.display='block'}
+    else{document.getElementById('guruDash').style.display='block';document.getElementById('guruInfo').textContent='Guru: '+nama+' (aktif)';document.getElementById('manage').hidden=false;loadSoal();loadMurid()}
+  }
+  if(glogin)glogin.onclick=()=>guruLogin(false);
+  if(greg)greg.onclick=()=>guruLogin(true);
+  const gpay=document.getElementById('gpay');if(gpay)gpay.onclick=async()=>{
+    const kode=document.getElementById('gpaycode').value.trim();
+    const r=await fetch('/api/pay/activate',{method:'POST',headers:{'Authorization':'Bearer '+GURU_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({kode})});
+    const d=await r.json();
+    if(r.ok){document.getElementById('guruPay').style.display='none';document.getElementById('guruDash').style.display='block';document.getElementById('manage').hidden=false;loadSoal();loadMurid();alert('Aktif!')}
+    else alert(d.e||'Kode salah');
+  };
 });
 async function load(){
  var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
@@ -303,6 +347,8 @@ export default {
         const nama = cut(d.nama, 30).trim();
         if (!nama) return J({ e: 'nama' }, 400);
         try {
+          const c = await (tenant ? env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?').bind(tenant) : env.DB.prepare('SELECT COUNT(*) n FROM murid')).first();
+          if ((c?.n||0) >= 50) return J({ e: 'max50' }, 403);
           const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
             .bind(tenant, nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
@@ -354,11 +400,11 @@ export default {
       if (!nama || !pin) return J({ e: 'data' }, 400);
       try {
         const h = await sha256(pin);
-        const r = await env.DB.prepare('SELECT id,role,tenant,nama,kelas FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
+        const r = await env.DB.prepare('SELECT id,role,tenant,nama,kelas,paid FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
         if (!r) return J({ e: 'login' }, 401);
         const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
         await env.DB.prepare('UPDATE users SET token=? WHERE id=?').bind(token, r.id).run();
-        return J({ ok: 1, user: { id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas, token } });
+        return J({ ok: 1, user: { id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas, paid: r.paid, token } });
       } catch (e) { return J({ e: 'db' }, 500); }
     }
 
@@ -398,6 +444,20 @@ export default {
         const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
         return J({ list: r.results || [] });
       } catch (e) { return J({ list: [] }); }
+    }
+
+    // Aktivasi pembayaran guru (kode bayar)
+    if (u.pathname === '/api/pay/activate' && req.method === 'POST') {
+      const ctx = await authCtx();
+      if (!ctx.user) return J({ e: 'unauthorized' }, 401);
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.kode, 40).trim();
+      // kode pembayaran sederhana: PAY-<tenant> atau kode apa pun (MVP)
+      if (!kode) return J({ e: 'data' }, 400);
+      try {
+        await env.DB.prepare("UPDATE users SET paid=1, paid_until=datetime('now','+8 hours','+30 day') WHERE id=?").bind(ctx.user.id).run();
+        return J({ ok: 1 });
+      } catch (e) { return J({ e: 'db' }, 500); }
     }
 
     if (u.pathname === '/admin') return new Response(PAGE, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });

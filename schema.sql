@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS users(
   tenant TEXT DEFAULT '',
   nama TEXT, kelas TEXT, email TEXT,
   pin_hash TEXT, token TEXT,
+  paid INTEGER DEFAULT 0,
+  paid_until TEXT,
   created_at TEXT DEFAULT (datetime('now','+8 hours'))
 );
 
