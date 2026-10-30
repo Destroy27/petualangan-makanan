@@ -6,7 +6,7 @@ const MIN_SESI = 2;        // minimal sesi sebelum siswa disorot
 const PAGE = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Rekap Petualangan Makanan</title>
 <style>
-:root{--bg:#eef4ff;--card:#fff;--ink:#1e293b;--mut:#475569;--pri:#2563eb;--line:#dbeafe;--warn:#fef3c7}
+:root{--bg:#faf6f0;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#c9a96e;--line:#f0e6d6;--warn:#f5ead6}
 *{box-sizing:border-box}
 body{margin:0;padding:18px;background:linear-gradient(135deg,#fff7f3 0%,#ffe4dc 100%);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1080px;margin:0 auto}
@@ -42,7 +42,7 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 </style></head><body><div class="wrap">
 <h1>🍽️ Rekap Petualangan Makanan</h1>
 <p class="hint">Nilai semua siswa, per kelas, dan per materi. Kunci admin hanya disimpan di tab ini, tidak pernah dikirim ke mana pun selain server ini.</p>
-<div class="bar"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
+<div class="bar" style="display:none"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
 <div id="guruBox" style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 0 var(--line)">
 <h2 style="margin-top:0">Akun Guru (bayar dulu baru aktif)</h2>
 <div id="guruAuth">
