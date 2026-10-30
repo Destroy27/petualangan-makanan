@@ -28,3 +28,11 @@ CREATE TABLE IF NOT EXISTS murid(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nama TEXT, kelas TEXT, pin TEXT
 );
+
+CREATE TABLE IF NOT EXISTS users(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  role TEXT DEFAULT 'siswa',
+  nama TEXT, kelas TEXT, email TEXT,
+  pin_hash TEXT,
+  created_at TEXT DEFAULT (datetime('now','+8 hours'))
+);

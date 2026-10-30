@@ -2,6 +2,8 @@
 <html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Petualangan Makanan: Sistem Pencernaan</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff7a6b">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -177,7 +179,8 @@ function board(){const my=ME&&DB.get()[ME]?DB.get()[ME].name:'';const loc=Object
 function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start');board()}
 $('lg').onclick=()=>{const n=$('un').value.trim().slice(0,16),p=$('pw').value,k=n.toLowerCase(),kl=$('kl').value.trim().slice(0,10);if(!n||!/^\d{4}$/.test(p)){$('lm').textContent='Isi nama dan PIN 4 angka ya.';return}
  const u=DB.get();if(u[k]){if(u[k].pin!==hs(p+k)){$('lm').textContent='PIN salah.';SFX.bad();return}u[k].name=n;if(kl)u[k].kelas=kl}else u[k]={name:n,pin:hs(p+k),kelas:kl,best:0,plays:0,team:0,hist:[]};
- DB.set(u);ME=k;$('pw').value='';$('lm').textContent='';SFX.ok();showStart()};
+ DB.set(u);ME=k;$('pw').value='';$('lm').textContent='';SFX.ok();showStart();
+ if(API_URL){fetch(API_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p})}).then(r=>r.json()).then(d=>{if(d&&d.user){const u2=DB.get();if(u2[k])u2[k].serverId=d.user.id;DB.set(u2)}}).catch(()=>{fetch(API_URL+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p,kelas:kl,role:'siswa'})}).catch(()=>{})})}};
 $('out').onclick=()=>{ME=null;board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
@@ -232,4 +235,6 @@ function finish(){clearTimer();SFX.win();save();sendLog();const max=Math.round(S
   ST.map((s,i)=>`<div class="row"><span>${s.k}</span><b>${G.res[i]>0?'✅ +'+G.res[i]:'❌ 0'}</b></div>`).join('')+
   `<button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;
  show('s-end');$('again').onclick=()=>{SFX.pop();document.querySelectorAll('.food').forEach(x=>x.classList.remove('sel'));$('go').disabled=true;showStart()}}
-</script></body></html>
+</script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}</script>
+</body></html>

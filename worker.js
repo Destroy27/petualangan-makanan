@@ -170,6 +170,8 @@ el('out').onclick=function(){try{sessionStorage.removeItem(SKEY)}catch(e){}el('k
 try{var saved=sessionStorage.getItem(SKEY);if(saved){el('k').value=saved;load()}}catch(e){}
 </script>`;
 
+async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+
 export default {
   async fetch(req, env) {
     const u = new URL(req.url);
@@ -289,6 +291,33 @@ export default {
         try { await env.DB.prepare('DELETE FROM murid WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
         catch (e) { return J({ e: 'db' }, 500); }
       }
+    }
+
+    // Autentikasi server-side (akun siswa/guru)
+    if (u.pathname === '/api/auth/register' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const nama = cut(d.nama, 30).trim();
+      const pin = cut(d.pin, 16);
+      if (!nama || !pin) return J({ e: 'data' }, 400);
+      const role = d.role === 'guru' ? 'guru' : 'siswa';
+      try {
+        const h = await sha256(pin);
+        const r = await env.DB.prepare('INSERT INTO users(role,nama,kelas,email,pin_hash) VALUES(?,?,?,?,?)')
+          .bind(role, nama, cut(d.kelas, 12), cut(d.email, 60), h).run();
+        return J({ ok: 1, id: r.meta.last_row_id, role, nama });
+      } catch (e) { return J({ e: 'db' }, 500); }
+    }
+    if (u.pathname === '/api/auth/login' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const nama = cut(d.nama, 30).trim();
+      const pin = cut(d.pin, 16);
+      if (!nama || !pin) return J({ e: 'data' }, 400);
+      try {
+        const h = await sha256(pin);
+        const r = await env.DB.prepare('SELECT id,role,nama,kelas FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
+        if (!r) return J({ e: 'login' }, 401);
+        return J({ ok: 1, user: r });
+      } catch (e) { return J({ e: 'db' }, 500); }
     }
 
     if (u.pathname === '/admin') return new Response(PAGE, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
