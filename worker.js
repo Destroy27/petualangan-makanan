@@ -45,9 +45,15 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <div class="bar" style="display:none"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
 <div id="guruBox" style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 0 var(--line)">
 <h2 style="margin-top:0">Akun Guru (bayar dulu baru aktif)</h2>
-<div id="guruAuth">
+<div id="payGate">
+<p>Masukkan kode pembayaran untuk membuat akun:</p>
+<input id="paycode" placeholder="Kode bayar (contoh: PAY-XXXX)" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
+<button class="pri" id="verifyPay">Verifikasi Pembayaran</button>
+</div>
+<div id="guruAuth" style="display:none">
 <input id="gu" placeholder="Nama guru" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <input id="gp" type="password" placeholder="PIN/Password" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
+<input id="gpaycode" type="hidden">
 <button id="greg">Daftar Guru</button>
 <button class="pri" id="glogin">Masuk Guru</button>
 </div>
@@ -108,17 +114,28 @@ async function loadMurid(){try{const r=await api('/api/murid');const d=await r.j
   const fm=document.getElementById('fmurid');if(fm)fm.onsubmit=async(e)=>{e.preventDefault();await api('/api/murid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:document.getElementById('mu_nama').value,kelas:document.getElementById('mu_kelas').value,pin:document.getElementById('mu_pin').value})});fm.reset();loadMurid()};
   const gt=document.getElementById('genToken');if(gt)gt.onclick=async()=>{const r=await api('/api/token/create',{method:'POST'});const d=await r.json();document.getElementById('tokenOut').textContent=d.kode?'Token: '+d.kode+' (berlaku 1 hari)':'Gagal membuat token';};
 
+  const verify=document.getElementById('verifyPay');if(verify)verify.onclick=async()=>{
+    const kode=document.getElementById('paycode').value.trim();
+    if(!kode){alert('Masukkan kode pembayaran');return}
+    const r=await fetch('/api/pay/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})});
+    const d=await r.json();
+    if(!r.ok){alert(d.e||'Kode tidak valid');return}
+    document.getElementById('paycodeHidden')?0:0;
+    const hc=document.getElementById('gpaycode');if(hc)hc.value=kode;
+    document.getElementById('payGate').style.display='none';
+    document.getElementById('guruAuth').style.display='block';
+  };
   const glogin=document.getElementById('glogin');const greg=document.getElementById('greg');
   async function guruLogin(register=false){
-    const nama=document.getElementById('gu').value.trim();const pin=document.getElementById('gp').value.trim();const kelas=document.getElementById('gk').value.trim();
-    if(!nama||!pin){document.getElementById('lm')?0:0;alert('Isi nama dan PIN');return}
+    const nama=document.getElementById('gu').value.trim();const pin=document.getElementById('gp').value.trim();const kelas='';const paycode=document.getElementById('gpaycode').value.trim();
+    if(!nama||!pin){alert('Isi nama dan PIN');return}
     const path=register?'/api/auth/register':'/api/auth/login';
-    const body=register?{nama,pin,kelas,role:'guru'}:{nama,pin};
+    const body=register?{nama,pin,kelas,role:'guru',paycode}:{nama,pin};
     const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
     if(!r.ok){alert(d.e||'Gagal');return}
     const token=register?d.token:d.user.token;
-    const paid=register?0:(d.user.paid||0);
+    const paid=register?1:(d.user.paid||0);
     GURU_TOKEN=token;sessionStorage.setItem('guru_token',token);
     document.getElementById('guruAuth').style.display='none';
     if(!paid){document.getElementById('guruPay').style.display='block'}
@@ -383,14 +400,17 @@ export default {
       const role = d.role === 'guru' ? 'guru' : 'siswa';
       const tenantInput = cut(d.tenant, 40).trim();
       const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const paycode = cut(d.paycode, 40).trim();
+      const paid = (role === 'guru' && paycode) ? 1 : 0;
       try {
         const h = await sha256(pin);
-        const r = await env.DB.prepare('INSERT INTO users(role,tenant,nama,kelas,email,pin_hash,token) VALUES(?,?,?,?,?,?,?)')
-          .bind(role, role === 'guru' ? '' : tenantInput, nama, cut(d.kelas, 12), cut(d.email, 60), h, token).run();
+        const r = await env.DB.prepare('INSERT INTO users(role,tenant,nama,kelas,email,pin_hash,token,paid) VALUES(?,?,?,?,?,?,?,?)')
+          .bind(role, role === 'guru' ? '' : tenantInput, nama, cut(d.kelas, 12), cut(d.email, 60), h, token, paid).run();
         const id = r.meta.last_row_id;
         const tenant = role === 'guru' ? ('g' + id) : (tenantInput || '');
         if (role === 'guru') await env.DB.prepare('UPDATE users SET tenant=? WHERE id=?').bind(tenant, id).run();
-        return J({ ok: 1, id, role, nama, tenant, token });
+        if (paid) await env.DB.prepare("UPDATE users SET paid_until=datetime('now','+8 hours','+30 day') WHERE id=?").bind(id).run();
+        return J({ ok: 1, id, role, nama, tenant, token, paid });
       } catch (e) { return J({ e: 'db' }, 500); }
     }
     if (u.pathname === '/api/auth/login' && req.method === 'POST') {
@@ -458,6 +478,15 @@ export default {
         await env.DB.prepare("UPDATE users SET paid=1, paid_until=datetime('now','+8 hours','+30 day') WHERE id=?").bind(ctx.user.id).run();
         return J({ ok: 1 });
       } catch (e) { return J({ e: 'db' }, 500); }
+    }
+
+    // Verifikasi kode pembayaran (gate sebelum daftar guru)
+    if (u.pathname === '/api/pay/verify' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.kode, 40).trim();
+      if (!kode) return J({ e: 'data' }, 400);
+      // MVP: terima kode apa pun (integrasi payment gateway bisa ditambahkan nanti)
+      return J({ ok: 1 });
     }
 
     if (u.pathname === '/admin') return new Response(PAGE, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
