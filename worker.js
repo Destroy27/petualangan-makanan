@@ -6,7 +6,7 @@ const MIN_SESI = 2;        // minimal sesi sebelum siswa disorot
 const PAGE = `<!doctype html><html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Rekap Petualangan Makanan</title>
 <style>
-:root{--bg:#fff7f3;--card:#fff;--ink:#3b2422;--mut:#7a5c57;--pri:#ff7a6b;--line:#f0dcd5;--warn:#fff3cd}
+:root{--bg:#eef4ff;--card:#fff;--ink:#1e293b;--mut:#475569;--pri:#2563eb;--line:#dbeafe;--warn:#fef3c7}
 *{box-sizing:border-box}
 body{margin:0;padding:18px;background:linear-gradient(135deg,#fff7f3 0%,#ffe4dc 100%);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1080px;margin:0 auto}
@@ -195,9 +195,11 @@ export default {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
       const nama = cut(d.nama, 30).trim();
       if (!nama) return J({ e: 'nama' }, 400);
+      const ctx = await authCtx();
+      const tenant = ctx.tenant != null ? ctx.tenant : cut(d.tenant, 40).trim();
       try {
-        const r = await env.DB.prepare('INSERT INTO sesi(nama,kelas,mode,tim,level,makanan,skor) VALUES(?,?,?,?,?,?,?)')
-          .bind(nama, cut(d.kelas, 12), d.mode === 'tim' ? 'tim' : 'solo', cut(d.tim, 80), +d.level || 0, cut(d.makanan, 20), +d.skor || 0).run();
+        const r = await env.DB.prepare('INSERT INTO sesi(tenant,nama,kelas,mode,tim,level,makanan,skor) VALUES(?,?,?,?,?,?,?,?)')
+          .bind(tenant, nama, cut(d.kelas, 12), d.mode === 'tim' ? 'tim' : 'solo', cut(d.tim, 80), +d.level || 0, cut(d.makanan, 20), +d.skor || 0).run();
         const id = r.meta.last_row_id;
         const st = (Array.isArray(d.jawaban) ? d.jawaban : []).slice(0, 12).map(j =>
           env.DB.prepare('INSERT INTO jawaban(sesi_id,organ,pemain,salah,petunjuk,poin,soal) VALUES(?,?,?,?,?,?,?)')
@@ -214,9 +216,14 @@ export default {
     if (u.pathname === '/api/papan' && req.method === 'GET') {
       if (env.PAPAN_PUBLIK === '0') return J({ top: [] });
       try {
-        const r = await env.DB.prepare(
-          'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10'
-        ).all();
+        const ctx = await authCtx();
+        const tenant = u.searchParams.get('tenant') || (ctx.tenant != null ? ctx.tenant : '');
+        const sql = tenant
+          ? 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi WHERE tenant=? GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10'
+          : 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10';
+        const r = tenant
+          ? await env.DB.prepare(sql).bind(tenant).all()
+          : await env.DB.prepare(sql).all();
         return J({ top: r.results || [] });
       } catch (e) {
         return J({ top: [] }); // game tetap jalan dengan papan lokal
@@ -224,14 +231,19 @@ export default {
     }
 
     if (u.pathname === '/api/rekap') {
-      if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
-      const q = s => env.DB.prepare(s).all().then(r => r.results);
+      const ctx = await authCtx();
+      if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+      const t = ctx.tenant; // null = global admin (semua tenant)
+      const sesiWhere = t ? ' WHERE tenant=?' : '';
+      const jawWhere = t ? ' WHERE sesi_id IN (SELECT id FROM sesi WHERE tenant=?)' : '';
+      const bind = (sql, ...args) => t ? env.DB.prepare(sql).bind(t, ...args) : env.DB.prepare(sql).bind(...args);
+      // note: bind order: tenant first then others; queries below have no other params
       try {
         return J({
-          ringkasan: await q("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi"),
-          organ: await q('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban GROUP BY organ'),
-          siswa: await q('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi GROUP BY nama,kelas ORDER BY rata ASC'),
-          soal: await q('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5')
+          ringkasan: (await (t ? env.DB.prepare("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi" + sesiWhere).bind(t).all() : env.DB.prepare("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi").all())).results,
+          organ: (await (t ? env.DB.prepare('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban' + jawWhere + ' GROUP BY organ').bind(t).all() : env.DB.prepare('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban GROUP BY organ').all())).results,
+          siswa: (await (t ? env.DB.prepare('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi' + sesiWhere + ' GROUP BY nama,kelas ORDER BY rata ASC').bind(t).all() : env.DB.prepare('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi GROUP BY nama,kelas ORDER BY rata ASC').all())).results,
+          soal: (await (t ? env.DB.prepare('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban' + jawWhere + ' GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5').bind(t).all() : env.DB.prepare('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5').all())).results
         });
       } catch (e) {
         return J({ e: 'db' }, 500);
@@ -240,26 +252,30 @@ export default {
 
     // Kelola soal (guru). GET publik untuk game, POST/DELETE butuh kunci admin.
     if (u.pathname === '/api/soal') {
+      const ctx = await authCtx();
       if (req.method === 'GET') {
         try {
-          const r = await env.DB.prepare('SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal ORDER BY id DESC').all();
+          const tenant = u.searchParams.get('tenant') || (ctx.tenant != null ? ctx.tenant : '');
+          const sql = tenant ? 'SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal WHERE tenant=? ORDER BY id DESC' : 'SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal ORDER BY id DESC';
+          const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
           return J({ list: r.results || [] });
         } catch (e) { return J({ list: [] }); }
       }
       if (req.method === 'POST') {
-        if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+        if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
         let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
         const organ = cut(d.organ, 20).trim();
         const pertanyaan = cut(d.pertanyaan, 300).trim();
         if (!organ || !pertanyaan) return J({ e: 'data' }, 400);
+        const tenant = ctx.tenant != null ? ctx.tenant : cut(d.tenant, 40).trim();
         try {
-          const r = await env.DB.prepare('INSERT INTO soal(organ,level,pertanyaan,opsi,jawaban,pembahasan) VALUES(?,?,?,?,?,?)')
-            .bind(organ, +d.level || 1, pertanyaan, cut(d.opsi, 500), +d.jawaban || 0, cut(d.pembahasan, 300)).run();
+          const r = await env.DB.prepare('INSERT INTO soal(tenant,organ,level,pertanyaan,opsi,jawaban,pembahasan) VALUES(?,?,?,?,?,?,?)')
+            .bind(tenant, organ, +d.level || 1, pertanyaan, cut(d.opsi, 500), +d.jawaban || 0, cut(d.pembahasan, 300)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
         } catch (e) { return J({ e: 'db' }, 500); }
       }
       if (req.method === 'DELETE') {
-        if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+        if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
         const id = +u.searchParams.get('id');
         if (!id) return J({ e: 'id' }, 400);
         try { await env.DB.prepare('DELETE FROM soal WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
@@ -268,10 +284,13 @@ export default {
     }
     // Kelola akun murid (guru)
     if (u.pathname === '/api/murid') {
-      if (!env.ADMIN_KEY || req.headers.get('Authorization') !== 'Bearer ' + env.ADMIN_KEY) return J({ e: 'unauthorized' }, 401);
+      const ctx = await authCtx();
+      if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+      const tenant = ctx.tenant != null ? ctx.tenant : '';
       if (req.method === 'GET') {
         try {
-          const r = await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid ORDER BY nama').all();
+          const sql = tenant ? 'SELECT id,nama,kelas,pin FROM murid WHERE tenant=? ORDER BY nama' : 'SELECT id,nama,kelas,pin FROM murid ORDER BY nama';
+          const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
           return J({ list: r.results || [] });
         } catch (e) { return J({ list: [] }); }
       }
@@ -280,8 +299,8 @@ export default {
         const nama = cut(d.nama, 30).trim();
         if (!nama) return J({ e: 'nama' }, 400);
         try {
-          const r = await env.DB.prepare('INSERT INTO murid(nama,kelas,pin) VALUES(?,?,?)')
-            .bind(nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
+          const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
+            .bind(tenant, nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
         } catch (e) { return J({ e: 'db' }, 500); }
       }
@@ -293,18 +312,35 @@ export default {
       }
     }
 
-    // Autentikasi server-side (akun siswa/guru)
+    async function authCtx() {
+      const auth = req.headers.get('Authorization') || '';
+      const tok = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      if (!tok) return { admin: false, tenant: null, user: null };
+      if (tok === env.ADMIN_KEY) return { admin: true, tenant: null, user: null };
+      try {
+        const u = await env.DB.prepare('SELECT id,role,tenant,nama FROM users WHERE token=?').bind(tok).first();
+        if (u) return { admin: u.role === 'guru', tenant: u.tenant, user: u };
+      } catch (e) {}
+      return { admin: false, tenant: null, user: null };
+    }
+
+    // Autentikasi server-side (akun siswa/guru) + multi-tenant
     if (u.pathname === '/api/auth/register' && req.method === 'POST') {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
       const nama = cut(d.nama, 30).trim();
       const pin = cut(d.pin, 16);
       if (!nama || !pin) return J({ e: 'data' }, 400);
       const role = d.role === 'guru' ? 'guru' : 'siswa';
+      const tenantInput = cut(d.tenant, 40).trim();
+      const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
       try {
         const h = await sha256(pin);
-        const r = await env.DB.prepare('INSERT INTO users(role,nama,kelas,email,pin_hash) VALUES(?,?,?,?,?)')
-          .bind(role, nama, cut(d.kelas, 12), cut(d.email, 60), h).run();
-        return J({ ok: 1, id: r.meta.last_row_id, role, nama });
+        const r = await env.DB.prepare('INSERT INTO users(role,tenant,nama,kelas,email,pin_hash,token) VALUES(?,?,?,?,?,?,?)')
+          .bind(role, role === 'guru' ? '' : tenantInput, nama, cut(d.kelas, 12), cut(d.email, 60), h, token).run();
+        const id = r.meta.last_row_id;
+        const tenant = role === 'guru' ? ('g' + id) : (tenantInput || '');
+        if (role === 'guru') await env.DB.prepare('UPDATE users SET tenant=? WHERE id=?').bind(tenant, id).run();
+        return J({ ok: 1, id, role, nama, tenant, token });
       } catch (e) { return J({ e: 'db' }, 500); }
     }
     if (u.pathname === '/api/auth/login' && req.method === 'POST') {
@@ -314,9 +350,11 @@ export default {
       if (!nama || !pin) return J({ e: 'data' }, 400);
       try {
         const h = await sha256(pin);
-        const r = await env.DB.prepare('SELECT id,role,nama,kelas FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
+        const r = await env.DB.prepare('SELECT id,role,tenant,nama,kelas FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
         if (!r) return J({ e: 'login' }, 401);
-        return J({ ok: 1, user: r });
+        const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        await env.DB.prepare('UPDATE users SET token=? WHERE id=?').bind(token, r.id).run();
+        return J({ ok: 1, user: { id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas, token } });
       } catch (e) { return J({ e: 'db' }, 500); }
     }
 

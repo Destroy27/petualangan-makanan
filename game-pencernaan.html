@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#fff1ec;--card:#fff;--ink:#4a2c2a;--pri:#ff7a6b;--ok:#2fbf80;--bad:#ff5470;--soft:#ffd9cf;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+:root{--bg:#eef4ff;--card:#fff;--ink:#1e293b;--pri:#2563eb;--ok:#16a34a;--bad:#dc2626;--soft:#dbeafe;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
 html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%;text-size-adjust:100%}
 *{box-sizing:border-box}
 body{margin:0;min-height:100%;font-family:Fredoka,"Trebuchet MS",system-ui,sans-serif;background:var(--bg);color:var(--ink);background-image:radial-gradient(circle at 15% 8%,var(--soft),transparent 45%)}
@@ -21,7 +21,7 @@ h1{font-size:clamp(1.6rem,6vw,2.4rem);margin:8px 0 4px;text-align:center}
 .food svg{width:80px;animation:wob 2.4s ease-in-out infinite}
 .food:hover{transform:translateY(-4px) rotate(-2deg)}
 .food.sel{border-color:var(--pri);transform:scale(1.05)}
-.btn{display:block;margin:0 auto;padding:14px 32px;border:0;border-radius:99px;background:var(--pri);color:#fff;font:700 1.15rem Fredoka,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 0 #d9584b;transition:.15s}
+.btn{display:block;margin:0 auto;padding:14px 32px;border:0;border-radius:99px;background:var(--pri);color:#fff;font:700 1.15rem Fredoka,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 0 #1d4ed8;transition:.15s}
 .btn:active{transform:translateY(4px);box-shadow:0 2px 0 #d9584b}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 #hud{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);border-radius:18px;padding:8px 14px;margin-bottom:10px;font-weight:700}
@@ -173,14 +173,14 @@ function boardRows(rows,judul,note){return '<h2>'+judul+'</h2>'+(rows.length?row
 function board(){const my=ME&&DB.get()[ME]?DB.get()[ME].name:'';const loc=Object.values(DB.get()).sort((a,b)=>b.best-a.best).slice(0,5).map(x=>({nama:x.name,maks:x.best,me:x.name===my}));
  $('lb').innerHTML=boardRows(loc,'🏆 Papan Skor (perangkat ini)','Belum ada skor di perangkat ini.');
  if(!API_URL)return;
- fetch(API_URL+'/api/papan',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
+ fetch(API_URL+'/api/papan?tenant='+encodeURIComponent((DB.get()[ME]||{}).tenant||''),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
   $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa · 10 teratas</p>'
  }).catch(()=>{})}
 function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start');board()}
 $('lg').onclick=()=>{const n=$('un').value.trim().slice(0,16),p=$('pw').value,k=n.toLowerCase(),kl=$('kl').value.trim().slice(0,10);if(!n||!/^\d{4}$/.test(p)){$('lm').textContent='Isi nama dan PIN 4 angka ya.';return}
  const u=DB.get();if(u[k]){if(u[k].pin!==hs(p+k)){$('lm').textContent='PIN salah.';SFX.bad();return}u[k].name=n;if(kl)u[k].kelas=kl}else u[k]={name:n,pin:hs(p+k),kelas:kl,best:0,plays:0,team:0,hist:[]};
  DB.set(u);ME=k;$('pw').value='';$('lm').textContent='';SFX.ok();showStart();
- if(API_URL){fetch(API_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p})}).then(r=>r.json()).then(d=>{if(d&&d.user){const u2=DB.get();if(u2[k])u2[k].serverId=d.user.id;DB.set(u2)}}).catch(()=>{fetch(API_URL+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p,kelas:kl,role:'siswa'})}).catch(()=>{})})}};
+ if(API_URL){fetch(API_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p})}).then(r=>r.json()).then(d=>{if(d&&d.user){const u2=DB.get();if(u2[k]){u2[k].serverId=d.user.id;u2[k].tenant=d.user.tenant||u2[k].tenant||''}DB.set(u2)}}).catch(()=>{fetch(API_URL+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p,kelas:kl,role:'siswa',tenant:(DB.get()[k]||{}).tenant||''})}).catch(()=>{})})}};
 $('out').onclick=()=>{ME=null;board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
@@ -194,7 +194,7 @@ function vstat(){const l=vlist(),e=$('vsel');e.innerHTML=l.map(v=>'<option'+(VOI
 $('vsel').onchange=()=>{VOI=vlist().find(v=>v.name===$('vsel').value)||VOI;try{localStorage.setItem('pcn_voice',VOI.name)}catch(e){}speak('Halo! Aku siap menemani petualanganmu.',1)};
 $('vt').onclick=()=>speak('Halo! Aku siap menemani petualanganmu.',1);
 function post(d){if(!API_URL)return;fetch(API_URL+'/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>{if(!r.ok)throw 0}).catch(()=>{try{const q=JSON.parse(localStorage.getItem('pcn_q')||'[]');q.push(d);localStorage.setItem('pcn_q',JSON.stringify(q.slice(-20)))}catch(e){}})}
-function sendLog(){const m=DB.get()[ME]||{};post({nama:m.name||'',kelas:m.kelas||'',mode:TEAM.length?'tim':'solo',tim:TEAM.join(', '),level:LVL,makanan:G.f.n,skor:G.score,jawaban:G.log||[]})}
+function sendLog(){const m=DB.get()[ME]||{};post({nama:m.name||'',kelas:m.kelas||'',tenant:m.tenant||'',mode:TEAM.length?'tim':'solo',tim:TEAM.join(', '),level:LVL,makanan:G.f.n,skor:G.score,jawaban:G.log||[]})}
 try{const q=JSON.parse(localStorage.getItem('pcn_q')||'[]');localStorage.removeItem('pcn_q');q.forEach(post)}catch(e){}
 function hud(){if(G.i!=null){const h=ST.map((s,i)=>'<span class="stp '+(i<G.i?'done':i==G.i?'on':'')+'">'+(i<G.i?'✅':i==G.i?'📍':'⚪')+' '+s.k+'</span>').join('');$('steps').innerHTML=h;$('stepsTop').innerHTML=h}$('hs').textContent='⭐ '+G.score;
  $('hl').textContent=G.lives==null?'':'❤️'.repeat(G.lives)+'🖤'.repeat(3-G.lives);

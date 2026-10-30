@@ -52,8 +52,8 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
   ok('respons tidak di-cache', r.headers.get('Cache-Control') === 'no-store', r.headers.get('Cache-Control'));
   const sesi = log.run[0];
   ok('sesi_id = last_row_id', log.batch[0]?.[0].args[0] === 7, String(log.batch[0]?.[0].args[0]));
-  ok('nama dipotong 30 karakter', sesi.args[0].length === 30, String(sesi.args[0].length));
-  ok('makanan dipotong 20 karakter', sesi.args[5] === 'Nasi Goreng Spesial', sesi.args[5]);
+  ok('nama dipotong 30 karakter', sesi.args[1].length === 30, String(sesi.args[1].length));
+  ok('makanan dipotong 20 karakter', sesi.args[6] === 'Nasi Goreng Spesial', sesi.args[6]);
   ok('detail soal dibatasi 12 baris', log.batch[0].length === 12, String(log.batch[0].length));
   ok('teks soal dipotong 160 karakter', log.batch[0][0].args[6].length === 160, String(log.batch[0][0].args[6].length));
   ok('nilai salah/petunjuk/poin tersimpan', log.batch[0][0].args.slice(3, 6).join(',') === '1,1,40', log.batch[0][0].args.slice(3, 6).join(','));
@@ -77,8 +77,8 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
 {
   const { env: e, log } = env();
   const r = await call(e, '/api/log', { method: 'POST', body: JSON.stringify({ nama: 'A', mode: 'x', level: 'abc', skor: '9', jawaban: 'bukan array' }) });
-  ok('mode aneh dinormalkan ke solo', log.run[0].args[2] === 'solo', log.run[0].args[2]);
-  ok('level bukan angka → 0', log.run[0].args[4] === 0, String(log.run[0].args[4]));
+  ok('mode aneh dinormalkan ke solo', log.run[0].args[3] === 'solo', log.run[0].args[3]);
+  ok('level bukan angka → 0', log.run[0].args[5] === 0, String(log.run[0].args[5]));
   ok('tanpa detail soal tetap tersimpan', log.batch.length === 0 && r.status === 200, String(log.batch.length));
 }
 {

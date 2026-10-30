@@ -25,7 +25,7 @@ const until = async (fn, label, ms = 9000) => {
 function mk(opts = {}) {
   const calls = [];
   const fetchImpl = opts.fetch || (async (url, o) => {
-    if (/\/api\/papan$/.test(url)) {
+    if (/\/api\/papan/.test(url)) {
       calls.push({ url, papan: true });
       return { ok: true, status: 200, json: async () => ({ top: opts.papan || [] }) };
     }

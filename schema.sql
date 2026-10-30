@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS sesi(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   -- jam WITA (UTC+8). Ganti '+8 hours' kalau sekolahmu di zona waktu lain.
   waktu TEXT DEFAULT (datetime('now','+8 hours')),
+  tenant TEXT DEFAULT '',
   nama TEXT, kelas TEXT, mode TEXT, tim TEXT,
   level INTEGER, makanan TEXT, skor INTEGER
 );
@@ -20,19 +21,22 @@ CREATE INDEX IF NOT EXISTS idx_jawaban_organ ON jawaban(organ);
 
 CREATE TABLE IF NOT EXISTS soal(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant TEXT DEFAULT '',
   organ TEXT, level INTEGER DEFAULT 1,
   pertanyaan TEXT, opsi TEXT, jawaban INTEGER, pembahasan TEXT
 );
 
 CREATE TABLE IF NOT EXISTS murid(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant TEXT DEFAULT '',
   nama TEXT, kelas TEXT, pin TEXT
 );
 
 CREATE TABLE IF NOT EXISTS users(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   role TEXT DEFAULT 'siswa',
+  tenant TEXT DEFAULT '',
   nama TEXT, kelas TEXT, email TEXT,
-  pin_hash TEXT,
+  pin_hash TEXT, token TEXT,
   created_at TEXT DEFAULT (datetime('now','+8 hours'))
 );
