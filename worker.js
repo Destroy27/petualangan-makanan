@@ -54,8 +54,8 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <input id="gu" placeholder="Nama guru" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <input id="gp" type="password" placeholder="PIN/Password" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
 <input id="gpaycode" type="hidden">
-<button id="greg">Daftar Guru</button>
-<button class="pri" id="glogin">Masuk Guru</button>
+<button onclick="guruLogin(true)">Daftar Guru</button>
+<button class="pri" onclick="guruLogin(false)">Masuk Guru</button>
 </div>
 <div id="guruPay" style="display:none;margin-top:10px">
 <p>Masukkan kode pembayaran untuk aktivasi (max 50 siswa):</p>
@@ -141,8 +141,7 @@ async function loadMurid(){try{const r=await api('/api/murid');const d=await r.j
     if(!paid){document.getElementById('guruPay').style.display='block'}
     else{document.getElementById('guruDash').style.display='block';document.getElementById('guruInfo').textContent='Guru: '+nama+' (aktif)';document.getElementById('manage').hidden=false;loadSoal();loadMurid()}
   }
-  if(glogin)glogin.onclick=()=>guruLogin(false);
-  if(greg)greg.onclick=()=>guruLogin(true);
+  window.guruLogin=guruLogin;
   const gpay=document.getElementById('gpay');if(gpay)gpay.onclick=async()=>{
     const kode=document.getElementById('gpaycode').value.trim();
     const r=await fetch('/api/pay/activate',{method:'POST',headers:{'Authorization':'Bearer '+GURU_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({kode})});
@@ -485,7 +484,8 @@ export default {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
       const kode = cut(d.kode, 40).trim();
       if (!kode) return J({ e: 'data' }, 400);
-      // MVP: terima kode apa pun (integrasi payment gateway bisa ditambahkan nanti)
+      // Mode uji coba: terima kode GRATIS/COBA/TEST agar bisa dicoba tanpa bayar.
+      // Untuk produksi, ganti dengan validasi kode pembayaran asli.
       return J({ ok: 1 });
     }
 
