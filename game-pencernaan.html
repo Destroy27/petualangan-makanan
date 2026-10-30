@@ -78,6 +78,20 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 @media(max-width:900px){#app{padding:8px}#play{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"map steps" "panel panel";grid-template-rows:auto auto;gap:10px}#map{height:min(40vh,50vw)}#steps{display:flex;flex-direction:column;flex-wrap:nowrap;justify-content:center}.stp{font-size:.75rem;padding:4px 9px;transform-origin:left center}.stp.on{transform:none}#stepsTop{display:none}#panel{overflow:visible}#qbody{flex:0 0 auto;overflow:visible}#qin{min-height:0;justify-content:flex-start}}
 @media(max-width:600px){#map{height:44vh}.stp{font-size:.72rem;padding:4px 8px}}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
+/* Jawaban tidak terpotong + scrollbar transparan */
+#qbody{padding:8px 10px 14px;margin:0 -10px;scrollbar-width:thin;scrollbar-color:transparent transparent}
+#qbody:hover,#qbody:focus-within{scrollbar-color:rgba(224,86,58,.4) transparent}
+#qbody::-webkit-scrollbar{width:8px}
+#qbody::-webkit-scrollbar-button{display:none}
+#qbody::-webkit-scrollbar-track{background:transparent}
+#qbody::-webkit-scrollbar-thumb{background:transparent;border-radius:99px}
+#qbody:hover::-webkit-scrollbar-thumb{background:rgba(224,86,58,.4)}
+.opt{box-shadow:0 4px 0 var(--soft);padding:11px 14px;margin:5px 0}
+.opt:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 0 var(--soft)}
+.opt:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 var(--soft)}
+.chiprow{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+#stepsTop{gap:4px}
+#stepsTop .stp{font-size:.78rem;padding:4px 10px}
 </style><link rel="stylesheet" href="ui.css">
 <script src="ui.js"></script>
 </head>
@@ -289,7 +303,7 @@ function startTimer(){clearTimer();G.timeLeft=[45,30,20][LVL]||30;const el=$('ht
 function onTimeout(){if(G.lives<=0) return;G.lives=0;G.done=true;document.querySelectorAll('.opt').forEach(x=>{x.disabled=true;if(+x.dataset.i===G.q[2])x.classList.add('ok')});const f=$('fb');if(f){f.textContent='⏰ Waktu habis, poin 0. Jawaban benar ditandai hijau.';f.style.color='var(--bad)'}done(0)}
 function ask(){const st=ST[G.i];G.lives=3;G.done=false;const pool=LVL==0?X[G.i].m:LVL==2?X[G.i].s:st.q;G.q=pool[Math.random()*pool.length|0];G.hint=0;hud();cam(2,st.x,st.y);
  const o=G.q[1].map((t,i)=>[t,i]).sort(()=>Math.random()-.5);
- $('qin').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button><div id="fb"></div>`;$('qbody').scrollTop=0;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'});startTimer()}
+ $('qin').innerHTML=`<div class="intro">📍 ${st.k}${TEAM.length?' · 🎯 Giliran: <b>'+esc(TEAM[G.i%TEAM.length])+'</b>':''}<small>${esc(st.t.replace('{f}',G.f.n))}</small>${LVL==0?'<small>💡 Materi: '+X[G.i].d+'</small>':''}</div><h2>${G.q[0]}</h2>${o.map(([t,i])=>`<button class="opt" data-i="${i}">${t}</button>`).join('')}<div class="chiprow"><button class="chip" id="hint">💡 Petunjuk (−20 poin)</button><button class="chip" id="say">🔊 Dengar soal</button></div><div id="fb"></div>`;$('qbody').scrollTop=0;G.sp=(TEAM.length?'Giliran '+TEAM[G.i%TEAM.length]+'. ':'')+st.t.replace('{f}',G.f.n)+' '+G.q[0]+' '+o.map(x=>x[0]).join(', ');speak(G.sp);if(innerWidth<=900)$('panel').scrollIntoView({behavior:'smooth',block:'nearest'});startTimer()}
 function burst(x,y,a){for(let i=0;i<14;i++){const s=document.createElement('span');s.className='cf';s.textContent=a[i%a.length];
  s.style.left=x+'%';s.style.top=y+'%';s.style.setProperty('--dx',(Math.random()*180-90)+'px');s.style.setProperty('--dy',(Math.random()*-150-20)+'px');
  $('cam').appendChild(s);setTimeout(()=>s.remove(),1000)}}
