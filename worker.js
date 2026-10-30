@@ -66,6 +66,9 @@ button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--p
 <button class="pri" type="submit">Tambah Murid</button>
 </form>
 <div id="listMurid"></div>
+<h2>Token Akses (Rp 10.000 / hari)</h2>
+<button class="pri" id="genToken">Buat Token Hari Ini</button>
+<div id="tokenOut" style="margin-top:8px;font-weight:700"></div>
 </div>
 <p class="hint" style="text-align:center;margin-top:14px;font-size:.75rem">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div>
@@ -85,6 +88,7 @@ async function loadMurid(){try{const r=await api('/api/murid');const d=await r.j
 (function(){
   const fs=document.getElementById('fsoal');if(fs)fs.onsubmit=async(e)=>{e.preventDefault();const opsi=document.getElementById('so_opsi').value.split('|').map(x=>x.trim());await api('/api/soal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organ:document.getElementById('so_organ').value,level:+document.getElementById('so_level').value,pertanyaan:document.getElementById('so_q').value,opsi:JSON.stringify(opsi),jawaban:+document.getElementById('so_jaw').value,pembahasan:document.getElementById('so_pemb').value})});fs.reset();loadSoal()};
   const fm=document.getElementById('fmurid');if(fm)fm.onsubmit=async(e)=>{e.preventDefault();await api('/api/murid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:document.getElementById('mu_nama').value,kelas:document.getElementById('mu_kelas').value,pin:document.getElementById('mu_pin').value})});fm.reset();loadMurid()};
+  const gt=document.getElementById('genToken');if(gt)gt.onclick=async()=>{const r=await api('/api/token/create',{method:'POST'});const d=await r.json();document.getElementById('tokenOut').textContent=d.kode?'Token: '+d.kode+' (berlaku 1 hari)':'Gagal membuat token';};
 });
 async function load(){
  var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
@@ -356,6 +360,44 @@ export default {
         await env.DB.prepare('UPDATE users SET token=? WHERE id=?').bind(token, r.id).run();
         return J({ ok: 1, user: { id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas, token } });
       } catch (e) { return J({ e: 'db' }, 500); }
+    }
+
+    // Validasi token akses harian
+    if (u.pathname === '/api/token/validate' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.kode, 40).trim();
+      if (!kode) return J({ e: 'data' }, 400);
+      try {
+        const r = await env.DB.prepare("SELECT tenant,expires_at FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')").bind(kode).first();
+        if (!r) return J({ e: 'token' }, 404);
+        return J({ ok: 1, tenant: r.tenant });
+      } catch (e) { return J({ e: 'db' }, 500); }
+    }
+    // Buat token (guru)
+    if (u.pathname === '/api/token/create' && req.method === 'POST') {
+      const ctx = await authCtx();
+      if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+      const tenant = ctx.tenant != null ? ctx.tenant : '';
+      const kode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      try {
+        await env.DB.prepare("INSERT INTO token(tenant,kode,harga,expires_at) VALUES(?,?,10000,datetime('now','+8 hours','+1 day'))").bind(tenant, kode).run();
+        return J({ ok: 1, kode });
+      } catch (e) { return J({ e: 'db' }, 500); }
+    }
+    // Daftar siswa untuk game (publik, berdasarkan token/tenant)
+    if (u.pathname === '/api/siswa' && req.method === 'GET') {
+      try {
+        const kode = u.searchParams.get('token');
+        let tenant = u.searchParams.get('tenant') || '';
+        if (kode) {
+          const r = await env.DB.prepare("SELECT tenant FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')").bind(kode).first();
+          if (!r) return J({ list: [] });
+          tenant = r.tenant;
+        }
+        const sql = tenant ? 'SELECT id,nama,kelas FROM murid WHERE tenant=? ORDER BY nama' : 'SELECT id,nama,kelas FROM murid ORDER BY nama';
+        const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
+        return J({ list: r.results || [] });
+      } catch (e) { return J({ list: [] }); }
     }
 
     if (u.pathname === '/admin') return new Response(PAGE, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });

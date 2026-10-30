@@ -40,3 +40,12 @@ CREATE TABLE IF NOT EXISTS users(
   pin_hash TEXT, token TEXT,
   created_at TEXT DEFAULT (datetime('now','+8 hours'))
 );
+
+CREATE TABLE IF NOT EXISTS token(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant TEXT DEFAULT '',
+  kode TEXT,
+  harga INTEGER DEFAULT 10000,
+  expires_at TEXT,
+  created_at TEXT DEFAULT (datetime('now','+8 hours'))
+);

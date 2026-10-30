@@ -81,7 +81,19 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 </style></head>
 <body><div id="app">
 
-<section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masuk atau buat akun agar skormu tersimpan</p><div class="res"><input id="un" placeholder="Nama pengguna" maxlength="16"><input id="pw" type="password" inputmode="numeric" placeholder="PIN 4 angka" maxlength="4"><input id="kl" placeholder="Kelas (opsional, mis. X-1)" maxlength="10"><button class="btn" id="lg">Masuk / Daftar</button><p id="lm" class="sub" style="margin-top:8px"></p><p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru</a></p><div id="lb"></div><p class="sub" style="margin-top:10px;font-size:.72rem;opacity:.7">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p></div></section>
+<section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masukkan token akses dari guru (Rp 10.000 / hari)</p><div class="res">
+<input id="tk" placeholder="Kode token (6 karakter)" maxlength="8">
+<button class="btn" id="vt">Verifikasi Token</button>
+<p id="lm" class="sub" style="margin-top:8px"></p>
+<div id="studentPick" style="display:none;margin-top:10px">
+  <select id="st" style="width:100%;padding:12px;border-radius:14px;border:3px solid var(--soft);font:inherit"></select>
+  <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada)" maxlength="8" style="margin-top:8px">
+  <button class="btn" id="lg" style="margin-top:8px">Masuk</button>
+</div>
+<p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru</a></p>
+<div id="lb"></div>
+<p class="sub" style="margin-top:10px;font-size:.72rem;opacity:.7">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
+</div></section>
 <section id="s-start" class="screen">
  <h1>🍽️ Petualangan Makanan</h1>
  <p class="sub">Pilih makananmu, lalu temani dia berpetualang di sistem pencernaan!</p>
@@ -177,10 +189,39 @@ function board(){const my=ME&&DB.get()[ME]?DB.get()[ME].name:'';const loc=Object
   $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa · 10 teratas</p>'
  }).catch(()=>{})}
 function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start');board()}
-$('lg').onclick=()=>{const n=$('un').value.trim().slice(0,16),p=$('pw').value,k=n.toLowerCase(),kl=$('kl').value.trim().slice(0,10);if(!n||!/^\d{4}$/.test(p)){$('lm').textContent='Isi nama dan PIN 4 angka ya.';return}
- const u=DB.get();if(u[k]){if(u[k].pin!==hs(p+k)){$('lm').textContent='PIN salah.';SFX.bad();return}u[k].name=n;if(kl)u[k].kelas=kl}else u[k]={name:n,pin:hs(p+k),kelas:kl,best:0,plays:0,team:0,hist:[]};
- DB.set(u);ME=k;$('pw').value='';$('lm').textContent='';SFX.ok();showStart();
- if(API_URL){fetch(API_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p})}).then(r=>r.json()).then(d=>{if(d&&d.user){const u2=DB.get();if(u2[k]){u2[k].serverId=d.user.id;u2[k].tenant=d.user.tenant||u2[k].tenant||''}DB.set(u2)}}).catch(()=>{fetch(API_URL+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:n,pin:p,kelas:kl,role:'siswa',tenant:(DB.get()[k]||{}).tenant||''})}).catch(()=>{})})}};
+let currentToken='',currentStudents=[];
+$('vt').onclick=async()=>{
+  const kode=$('tk').value.trim().toUpperCase();
+  if(!kode){$('lm').textContent='Masukkan token.';return}
+  if(!API_URL){$('lm').textContent='Server belum terhubung.';return}
+  try{
+    const r=await fetch(API_URL+'/api/token/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})});
+    const d=await r.json();
+    if(!r.ok||!d.tenant){$('lm').textContent='Token tidak valid atau kedaluwarsa.';SFX.bad();return}
+    currentToken=kode;
+    const sr=await fetch(API_URL+'/api/siswa?token='+encodeURIComponent(kode));
+    const sd=await sr.json();
+    const list=Array.isArray(sd.list)?sd.list:[];
+    if(!list.length){$('lm').textContent='Belum ada siswa untuk token ini. Minta guru menambahkan.';return}
+    currentStudents=list;
+    const sel=$('st');sel.innerHTML=list.map(s=>'<option value="'+s.id+'">'+esc(s.nama)+' ('+esc(s.kelas||'-')+')'+'</option>').join('');
+    $('studentPick').style.display='block';
+    $('lm').textContent='Token valid. Pilih namamu lalu masuk.';
+    SFX.ok();
+  }catch(e){$('lm').textContent='Gagal menghubungi server.';SFX.bad()}
+};
+$('lg').onclick=()=>{
+  const sel=$('st');const opt=sel.options[sel.selectedIndex];
+  const name=opt?opt.textContent.split(' (')[0]:'';
+  const pin=$('sp').value.trim();
+  const student=currentStudents.find(s=>s.nama===name);
+  if(!student){$('lm').textContent='Pilih siswa.';return}
+  if(student.pin && student.pin!==pin){$('lm').textContent='PIN salah.';SFX.bad();return}
+  const k=name.toLowerCase();
+  const u=DB.get();
+  u[k]={name, pin:hs((pin||'0000')+k), kelas:student.kelas||'', tenant:currentToken, best:u[k]?.best||0, plays:u[k]?.plays||0, team:u[k]?.team||0, hist:u[k]?.hist||[]};
+  DB.set(u);ME=k;$('lm').textContent='';SFX.ok();showStart();
+};
 $('out').onclick=()=>{ME=null;board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
