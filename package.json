@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Game edukasi sistem pencernaan (HTML) + Worker/D1 untuk rekap guru",
   "scripts": {
-    "test": "node tests/game.test.mjs && node tests/worker.test.mjs",
+    "test": "node tests/worker.test.mjs && node tests/flow.test.mjs && node tests/game.test.mjs",
     "test:layout": "node tests/layout.test.mjs",
     "test:all": "npm test && npm run test:layout"
   },

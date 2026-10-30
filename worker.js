@@ -1,240 +1,26 @@
-// Cloudflare Worker + D1: menerima hasil game dan menampilkan rekap untuk guru.
-// --- Ambang saran tindakan (ubah di sini) ---
-const AMBANG_GAGAL = 30;   // % jawaban 0 poin per organ → materi perlu diulas
-const AMBANG_RATA = 250;   // rata-rata skor per siswa di bawah ini → perlu pendampingan
+// Cloudflare Worker + D1 untuk Petualangan Makanan.
+// Alur: guru daftar (coba gratis 3 hari atau pakai kode aktivasi),
+// lalu kelola murid, soal, dan token akses harian untuk siswa.
+
+const AMBANG_GAGAL = 30;   // % jawaban 0 poin per organ, materi perlu diulas
+const AMBANG_RATA = 250;   // rata-rata skor per siswa di bawah ini perlu pendampingan
 const MIN_SESI = 2;        // minimal sesi sebelum siswa disorot
-const PAGE = `<!doctype html><html lang="id"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Rekap Petualangan Makanan</title>
-<style>
-:root{--bg:#faf6f0;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#c9a96e;--line:#f0e6d6;--warn:#f5ead6}
-*{box-sizing:border-box}
-body{margin:0;padding:18px;background:linear-gradient(135deg,#fff7f3 0%,#ffe4dc 100%);color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:1080px;margin:0 auto}
-h1{font-size:1.8rem;margin:0 0 4px;text-align:center;color:var(--pri)}
-.hint{color:var(--mut);margin:0 0 14px;font-size:.9rem}
-.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
-input[type=password]{flex:1 1 220px;min-width:0;padding:10px 12px;border:2px solid var(--line);border-radius:12px;font:inherit;background:#fff;color:inherit}
-button{padding:10px 16px;border:2px solid var(--line);border-radius:12px;background:#fff;color:inherit;font:inherit;font-weight:600;cursor:pointer}
-button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
-button:disabled{opacity:.45;cursor:not-allowed}
-.msg{margin:6px 0 10px;color:var(--mut);min-height:1.2em;font-size:.88rem}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:6px 0 6px}
-.card{background:var(--card);border-radius:16px;padding:12px 14px;box-shadow:0 2px 0 var(--line)}
-.card b{display:block;font-size:1.6rem;line-height:1.2;font-weight:700}
-.card small{color:var(--mut);font-size:.76rem;text-transform:uppercase;letter-spacing:.04em}
-h2{font-size:1.05rem;margin:22px 0 8px}
-h2 small{font-weight:400;color:var(--mut)}
-.w{background:var(--warn);border-radius:12px;padding:9px 12px;margin:6px 0;font-size:.92rem}
-.empty{background:var(--card);border-radius:14px;padding:16px;color:var(--mut);font-size:.9rem}
-.t{overflow-x:auto;background:var(--card);border-radius:14px;box-shadow:0 2px 0 var(--line)}
-table{border-collapse:collapse;width:100%;font-size:.9rem}
-th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{color:var(--mut);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em;background:#fffaf8}
-tbody tr:last-child td{border-bottom:0}
-td.num,th.num{text-align:right}
-.rk{display:inline-block;min-width:24px;font-weight:700;color:var(--mut)}
-tr.top1 .rk,tr.top2 .rk,tr.top3 .rk{color:var(--pri)}
-.bar2{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 4px}
-.bar2 label{font-size:.88rem;color:var(--mut)}
-select{padding:8px 10px;border:2px solid var(--line);border-radius:10px;font:inherit;background:#fff;color:inherit;max-width:100%}
-button.rm{margin-top:8px;padding:12px 20px;border-color:var(--pri);color:var(--pri)}
-@media print{.bar,.bar2,#csv,#out{display:none}body{background:#fff;padding:0}.t,.card{box-shadow:none;border:1px solid var(--line)}}
-</style></head><body><div class="wrap">
-<h1>🍽️ Rekap Petualangan Makanan</h1>
-<p class="hint">Nilai semua siswa, per kelas, dan per materi. Kunci admin hanya disimpan di tab ini, tidak pernah dikirim ke mana pun selain server ini.</p>
-<div class="bar" style="display:none"><input id="k" type="password" placeholder="Kunci admin (superadmin)" autocomplete="current-password" aria-label="Kunci admin"><button class="pri" id="go">Muat</button><button id="csv" disabled>⬇ Unduh CSV</button><button id="out" title="Hapus kunci dari tab ini">Keluar</button></div>
-<div id="guruBox" style="background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 0 var(--line)">
-<h2 style="margin-top:0">Akun Guru (bayar dulu baru aktif)</h2>
-<div id="payGate" style="display:none">
-<p>Masukkan kode pembayaran untuk membuat akun:</p>
-<input id="paycode" placeholder="Kode bayar (contoh: PAY-XXXX)" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
-<button class="pri" id="verifyPay">Verifikasi Pembayaran</button>
-</div>
-<div id="guruAuth" style="display:block">
-<input id="gu" placeholder="Nama guru" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
-<input id="gp" type="password" placeholder="PIN/Password" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
-<input id="gpaycode" type="hidden">
-<button onclick="guruLogin(true)">Daftar Guru</button>
-<button class="pri" onclick="guruLogin(false)">Masuk Guru</button>
-</div>
-<div id="guruPay" style="display:none;margin-top:10px">
-<p>Masukkan kode pembayaran untuk aktivasi (max 50 siswa):</p>
-<input id="gpaycode" placeholder="Kode bayar" style="width:100%;padding:10px;border-radius:12px;border:2px solid var(--line);margin-bottom:6px">
-<button class="pri" id="gpay">Aktifkan</button>
-</div>
-<div id="guruDash" style="display:none;margin-top:10px">
-<p id="guruInfo"></p>
-</div>
-</div>
-<p class="msg" id="msg"></p>
-<div class="bar2" id="bar2" hidden><label>Kelas <select id="f"><option value="">Semua kelas</option></select></label><span class="hint" style="margin:0">Peringkat diurutkan dari skor terbaik.</span></div>
-<div id="o"></div>
-<div id="manage" hidden>
-<h2>Kelola Soal</h2>
-<form id="fsoal" style="display:grid;gap:8px;max-width:520px;margin-bottom:10px">
-<input id="so_organ" placeholder="Organ (mis. Mulut)" required>
-<input id="so_level" type="number" min="0" max="2" placeholder="Level (0=Pemula,1=Jagoan,2=Master)" value="1">
-<input id="so_q" placeholder="Pertanyaan" required>
-<input id="so_opsi" placeholder="Opsi (pisah | , mis. A|B|C|D)" required>
-<input id="so_jaw" type="number" min="0" placeholder="Indeks jawaban benar (0-based)" required>
-<input id="so_pemb" placeholder="Pembahasan">
-<button class="pri" type="submit">Tambah Soal</button>
-</form>
-<div id="listSoal"></div>
-<h2>Kelola Akun Murid</h2>
-<form id="fmurid" style="display:grid;gap:8px;max-width:520px;margin-bottom:10px">
-<input id="mu_nama" placeholder="Nama" required>
-<input id="mu_kelas" placeholder="Kelas">
-<input id="mu_pin" placeholder="PIN" required>
-<button class="pri" type="submit">Tambah Murid</button>
-</form>
-<div id="listMurid"></div>
-<h2>Token Akses (Rp 10.000 / hari)</h2>
-<button class="pri" id="genToken">Buat Token Hari Ini</button>
-<div id="tokenOut" style="margin-top:8px;font-weight:700"></div>
-</div>
-<p class="hint" style="text-align:center;margin-top:14px;font-size:.75rem">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
-</div>
-<script>
-var SKEY='pcn_admin',D=null,GURU_TOKEN=sessionStorage.getItem('guru_token')||'';
-function authToken(){return GURU_TOKEN||key()}
-function el(i){return document.getElementById(i)}
-function E(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function N(v){var x=+v||0;return x.toLocaleString('id-ID')}
-function tbl(head,rows){return '<div class="t"><table><thead><tr>'+head.map(function(h){return '<th>'+h+'</th>'}).join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
-function tr(cells,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'>'+cells.map(function(c){return '<td>'+c+'</td>'}).join('')+'</tr>'}
-function key(){return el('k').value.trim()}
-function kelasOf(x){return x.kelas||'(tanpa kelas)'}
+const TRIAL_DAYS = 3;      // masa coba gratis untuk guru baru
+const DEFAULT_DAYS = 30;   // masa aktif per kode aktivasi
+const ADMIN_URL = 'https://destroy27.github.io/petualangan-makanan/admin.html';
 
-async function api(path,init){const k=authToken();return fetch(path,Object.assign({},init,{headers:Object.assign({'Authorization':'Bearer '+k},init&&init.headers||{})}))}
-async function loadSoal(){try{const r=await fetch('/api/soal');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listSoal').innerHTML=list.map(s=>'<div class="row"><span>'+E(s.organ)+' L'+s.level+' — '+E(s.pertanyaan)+'</span><button data-id="'+s.id+'" class="rm delSoal">Hapus</button></div>').join('')||'<div class="empty">Belum ada soal.</div>';el('listSoal').querySelectorAll('.delSoal').forEach(b=>b.onclick=async()=>{await api('/api/soal?id='+b.dataset.id,{method:'DELETE'});loadSoal()})}catch(e){}}
-async function loadMurid(){try{const r=await api('/api/murid');const d=await r.json();const list=Array.isArray(d.list)?d.list:[];el('listMurid').innerHTML=list.map(m=>'<div class="row"><span>'+E(m.nama)+' · '+E(m.kelas||'-')+'</span><button data-id="'+m.id+'" class="rm delMurid">Hapus</button></div>').join('')||'<div class="empty">Belum ada murid.</div>';el('listMurid').querySelectorAll('.delMurid').forEach(b=>b.onclick=async()=>{await api('/api/murid?id='+b.dataset.id,{method:'DELETE'});loadMurid()})}catch(e){}}
-(function(){
-  const fs=document.getElementById('fsoal');if(fs)fs.onsubmit=async(e)=>{e.preventDefault();const opsi=document.getElementById('so_opsi').value.split('|').map(x=>x.trim());await api('/api/soal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({organ:document.getElementById('so_organ').value,level:+document.getElementById('so_level').value,pertanyaan:document.getElementById('so_q').value,opsi:JSON.stringify(opsi),jawaban:+document.getElementById('so_jaw').value,pembahasan:document.getElementById('so_pemb').value})});fs.reset();loadSoal()};
-  const fm=document.getElementById('fmurid');if(fm)fm.onsubmit=async(e)=>{e.preventDefault();await api('/api/murid',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nama:document.getElementById('mu_nama').value,kelas:document.getElementById('mu_kelas').value,pin:document.getElementById('mu_pin').value})});fm.reset();loadMurid()};
-  const gt=document.getElementById('genToken');if(gt)gt.onclick=async()=>{const r=await api('/api/token/create',{method:'POST'});const d=await r.json();document.getElementById('tokenOut').textContent=d.kode?'Token: '+d.kode+' (berlaku 1 hari)':'Gagal membuat token';};
-
-  const verify=document.getElementById('verifyPay');if(verify)verify.onclick=async()=>{
-    const kode=document.getElementById('paycode').value.trim()||'COBA';
-    if(false){alert('Masukkan kode pembayaran');return}
-    const r=await fetch('/api/pay/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})});
-    const d=await r.json();
-    if(!r.ok){alert(d.e||'Kode tidak valid');return}
-    document.getElementById('paycodeHidden')?0:0;
-    const hc=document.getElementById('gpaycode');if(hc)hc.value=kode;
-    document.getElementById('payGate').style.display='none';
-    document.getElementById('guruAuth').style.display='block';
-  };
-  const glogin=document.getElementById('glogin');const greg=document.getElementById('greg');
-  async function guruLogin(register=false){
-    const nama=document.getElementById('gu').value.trim();const pin=document.getElementById('gp').value.trim();const kelas='';const paycode=document.getElementById('gpaycode').value.trim();
-    if(!nama||!pin){alert('Isi nama dan PIN');return}
-    const path=register?'/api/auth/register':'/api/auth/login';
-    const body=register?{nama,pin,kelas,role:'guru',paycode}:{nama,pin};
-    const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    const d=await r.json();
-    if(!r.ok){alert(d.e||'Gagal');return}
-    const token=register?d.token:d.user.token;
-    const paid=register?1:(d.user.paid||0);
-    GURU_TOKEN=token;sessionStorage.setItem('guru_token',token);
-    document.getElementById('guruAuth').style.display='none';
-    if(!paid){document.getElementById('guruPay').style.display='block'}
-    else{document.getElementById('guruDash').style.display='block';document.getElementById('guruInfo').textContent='Guru: '+nama+' (aktif)';document.getElementById('manage').hidden=false;loadSoal();loadMurid()}
-  }
-  window.guruLogin=guruLogin;
-  const gpay=document.getElementById('gpay');if(gpay)gpay.onclick=async()=>{
-    const kode=document.getElementById('gpaycode').value.trim();
-    const r=await fetch('/api/pay/activate',{method:'POST',headers:{'Authorization':'Bearer '+GURU_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({kode})});
-    const d=await r.json();
-    if(r.ok){document.getElementById('guruPay').style.display='none';document.getElementById('guruDash').style.display='block';document.getElementById('manage').hidden=false;loadSoal();loadMurid();alert('Aktif!')}
-    else alert(d.e||'Kode salah');
-  };
-})();
-async function load(){
- var k=key();if(!k){el('msg').textContent='Isi kunci admin dulu.';return}
- el('msg').textContent='Memuat…';
- try{
-  var r=await fetch('/api/rekap',{headers:{Authorization:'Bearer '+k},cache:'no-store'});
-  if(r.status===401){el('msg').textContent='Kunci salah.';return}
-  if(!r.ok){el('msg').textContent='Gagal memuat (server '+r.status+').';return}
-  D=await r.json();
-  try{sessionStorage.setItem(SKEY,k)}catch(e){}
-  el('csv').disabled=false;
-  fillKelas();
-  el('manage').hidden=false;
-  el('msg').textContent='Terakhir dimuat '+new Date().toLocaleTimeString('id-ID')+' · '+N((D.siswa||[]).length)+' siswa, '+N((D.ringkasan&&D.ringkasan[0]?D.ringkasan[0].sesi:0))+' sesi';
-  render();
-  loadSoal();loadMurid();
- }catch(e){el('msg').textContent='Gagal menghubungi server. Cek koneksi lalu coba lagi.'}
+async function sha256(s) {
+  const b = new TextEncoder().encode(s);
+  const h = await crypto.subtle.digest('SHA-256', b);
+  return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
-function fillKelas(){
- var set={};(D.siswa||[]).forEach(function(x){set[kelasOf(x)]=1});
- var opts=[''].concat(Object.keys(set).sort()),s=el('f');
- s.innerHTML=opts.map(function(v){return '<option value="'+E(v)+'">'+(v?E(v):'Semua kelas')+'</option>'}).join('');
- el('bar2').hidden=false;
+function kodeAcak(n = 4) {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const a = new Uint8Array(n);
+  crypto.getRandomValues(a);
+  return [...a].map(x => abc[x % abc.length]).join('');
 }
-function siswa(){var f=el('f').value;return (D.siswa||[]).filter(function(x){return !f||kelasOf(x)===f})}
-
-function render(){
- if(!D)return;
- var byKelas=siswa(),all=D.siswa||[],R=(D.ringkasan&&D.ringkasan[0])||{},organ=D.organ||[],soal=D.soal||[];
- var urut=byKelas.slice().sort(function(a,b){return (b.maks-a.maks)||(b.rata-a.rata)||String(a.nama).localeCompare(String(b.nama))});
- var h='';
-
- h+='<div class="cards">'
-  +'<div class="card"><b>'+N(R.sesi)+'</b><small>Total sesi main</small></div>'
-  +'<div class="card"><b>'+N(R.siswa)+'</b><small>Siswa terdata</small></div>'
-  +'<div class="card"><b>'+N(R.rata)+'</b><small>Rata-rata skor</small></div>'
-  +'<div class="card"><b style="font-size:1rem">'+E(R.terakhir||'–')+'</b><small>Sesi terakhir (WITA)</small></div>'
-  +'</div>';
-
- var a=organ.filter(function(x){return x.pct_gagal>=${AMBANG_GAGAL}}).map(function(x){
-  return '<div class="w">Materi <b>'+E(x.organ)+'</b>: '+N(x.pct_gagal)+'% jawaban gagal total ('+N(x.n)+' jawaban). Ulas ulang di kelas.</div>'});
- var b=all.filter(function(x){return x.rata<${AMBANG_RATA}&&x.sesi>=${MIN_SESI}}).map(function(x){
-  return '<div class="w"><b>'+E(x.nama)+'</b> ('+E(x.kelas||'-')+'): rata-rata '+N(x.rata)+' dari '+N(x.sesi)+' sesi. Perlu pendampingan.</div>'});
- h+='<h2>Saran tindakan</h2>'+(a.concat(b).join('')||'<div class="empty">Belum ada yang menonjol: semua materi dan siswa masih di atas ambang.</div>');
-
- h+='<h2>🏆 Peringkat siswa <small>('+N(urut.length)+' siswa'+(el('f').value?' · '+E(el('f').value):'')+')</small></h2>';
- h+=urut.length?tbl(['#','Nama','Kelas','Sesi','Rata-rata','Terbaik','Terakhir main'],urut.map(function(x,i){
-   return tr(['<span class="rk">'+(['🥇','🥈','🥉'][i]||(i+1))+'</span>',E(x.nama),E(x.kelas||'-'),N(x.sesi),N(x.rata),'<b>'+N(x.maks)+'</b>',E(x.terakhir||'-')],i<3?'top'+(i+1):'')
- })):'<div class="empty">Belum ada siswa di kelas ini.</div>';
-
- var K={};all.forEach(function(x){var k=kelasOf(x),o=K[k]=K[k]||{kelas:k,siswa:0,sesi:0,poin:0,maks:0};o.siswa++;o.sesi+=(+x.sesi||0);o.poin+=(+x.rata||0)*(+x.sesi||0);o.maks=Math.max(o.maks,+x.maks||0)});
- var kr=Object.keys(K).map(function(k){return K[k]}).sort(function(p,q){return (q.poin/Math.max(q.sesi,1))-(p.poin/Math.max(p.sesi,1))});
- h+='<h2>🏫 Per kelas</h2>'+tbl(['Kelas','Siswa','Sesi','Rata-rata','Terbaik'],kr.map(function(x){
-  return tr([E(x.kelas),N(x.siswa),N(x.sesi),N(Math.round(x.poin/Math.max(x.sesi,1))),N(x.maks)])}));
-
- h+='<h2>🫀 Per materi (organ)</h2>'+(organ.length?tbl(['Organ','Jawaban','Rata salah','% gagal (0 poin)','% pakai petunjuk'],organ.map(function(x){
-  return tr([E(x.organ),N(x.n),N(x.rata_salah),N(x.pct_gagal)+'%',N(x.pct_petunjuk)+'%'])})):'<div class="empty">Belum ada detail jawaban.</div>');
-
- h+='<h2>🔎 Soal tersulit</h2>'+(soal.length?tbl(['Soal','Dijawab','Rata salah'],soal.map(function(x){
-  return tr([E(x.soal),N(x.n),N(x.rata_salah)])})):'<div class="empty">Belum ada soal yang cukup sering dijawab.</div>');
-
- el('o').innerHTML=h;
-}
-
-function csv(){
- if(!D)return;
- var urut=siswa().slice().sort(function(a,b){return (b.maks-a.maks)||(b.rata-a.rata)});
- var rows=[['Peringkat','Nama','Kelas','Sesi','Rata-rata','Skor terbaik','Terakhir main']];
- urut.forEach(function(x,i){rows.push([i+1,x.nama,x.kelas||'',x.sesi,x.rata,x.maks,x.terakhir||''])});
- var txt='\\uFEFF'+rows.map(function(r){return r.map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"'}).join(',')}).join('\\r\\n');
- var a=document.createElement('a');
- a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
- a.download='rekap-pencernaan-'+new Date().toISOString().slice(0,10)+'.csv';
- document.body.appendChild(a);a.click();a.remove();
-}
-
-el('go').onclick=load;
-el('csv').onclick=csv;
-el('f').onchange=render;
-el('k').onkeydown=function(e){if(e.key==='Enter')load()};
-el('out').onclick=function(){try{sessionStorage.removeItem(SKEY)}catch(e){}el('k').value='';D=null;el('o').innerHTML='';el('bar2').hidden=true;el('csv').disabled=true;el('msg').textContent='Kunci dihapus dari tab ini.'};
-try{var saved=sessionStorage.getItem(SKEY);if(saved){el('k').value=saved;load()}}catch(e){}
-</script>`;
-
-async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 export default {
   async fetch(req, env) {
@@ -242,7 +28,7 @@ export default {
     const origin = env.ALLOWED_ORIGIN || '*';
     const h = {
       'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'POST,GET,OPTIONS',
+      'Access-Control-Allow-Methods': 'POST,GET,DELETE,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type,Authorization',
       'Access-Control-Max-Age': '86400',
       'Cache-Control': 'no-store',
@@ -250,24 +36,73 @@ export default {
     };
     const J = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: h });
     const cut = (s, n) => String(s ?? '').slice(0, n);
+
     if (req.method === 'OPTIONS') return new Response(null, { headers: h });
-    // Cek origin: browser dari domain lain ditolak (CORS saja tidak cukup).
+
+    // Cek origin: browser dari domain lain ditolak.
     const reqOrigin = req.headers.get('Origin');
     if (origin !== '*' && reqOrigin && reqOrigin !== origin) return J({ e: 'origin' }, 403);
 
+    async function tokenTenant(kode, abaikanKedaluwarsa = false) {
+      if (!kode) return '';
+      try {
+        const sql = abaikanKedaluwarsa
+          ? 'SELECT tenant FROM token WHERE kode=?'
+          : "SELECT tenant FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')";
+        const r = await env.DB.prepare(sql).bind(String(kode).toUpperCase()).first();
+        return r ? (r.tenant || '') : '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    async function authCtx() {
+      const auth = req.headers.get('Authorization') || '';
+      const tok = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      if (!tok) return { admin: false, tenant: null, user: null, active: false, owner: false };
+      if (env.ADMIN_KEY && tok === env.ADMIN_KEY) {
+        return { admin: true, tenant: null, user: null, active: true, owner: true };
+      }
+      try {
+        const r = await env.DB.prepare(
+          "SELECT id,role,tenant,nama,kelas,paid,paid_until," +
+          "CASE WHEN paid=1 AND paid_until IS NOT NULL AND paid_until >= datetime('now','+8 hours') THEN 1 ELSE 0 END AS active " +
+          "FROM users WHERE token=?"
+        ).bind(tok).first();
+        if (r) return { admin: r.role === 'guru', tenant: r.tenant, user: r, active: !!r.active, owner: false };
+      } catch (e) {}
+      return { admin: false, tenant: null, user: null, active: false, owner: false };
+    }
+
+    const bolehTulis = (ctx) => ctx.owner || ctx.active;
+
+    // ---------- Hasil permainan ----------
     if (u.pathname === '/api/log' && req.method === 'POST') {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
       const nama = cut(d.nama, 30).trim();
       if (!nama) return J({ e: 'nama' }, 400);
+
       const ctx = await authCtx();
-      const tenant = ctx.tenant != null ? ctx.tenant : cut(d.tenant, 40).trim();
+      let tenant = ctx.tenant != null ? ctx.tenant : '';
+      if (!tenant) {
+        // Token siswa tetap dikenali walau sesi melewati tengah malam.
+        // Tenant mentah dari klien tidak dipercaya agar rekap guru lain tidak bisa disisipi.
+        const kode = cut(d.token, 40).trim();
+        if (kode) tenant = await tokenTenant(kode, true);
+      }
+
       try {
-        const r = await env.DB.prepare('INSERT INTO sesi(tenant,nama,kelas,mode,tim,level,makanan,skor) VALUES(?,?,?,?,?,?,?,?)')
-          .bind(tenant, nama, cut(d.kelas, 12), d.mode === 'tim' ? 'tim' : 'solo', cut(d.tim, 80), +d.level || 0, cut(d.makanan, 20), +d.skor || 0).run();
+        const r = await env.DB.prepare(
+          'INSERT INTO sesi(tenant,nama,kelas,mode,tim,level,makanan,skor) VALUES(?,?,?,?,?,?,?,?)'
+        ).bind(
+          tenant, nama, cut(d.kelas, 12), d.mode === 'tim' ? 'tim' : 'solo',
+          cut(d.tim, 80), +d.level || 0, cut(d.makanan, 20), +d.skor || 0
+        ).run();
         const id = r.meta.last_row_id;
         const st = (Array.isArray(d.jawaban) ? d.jawaban : []).slice(0, 12).map(j =>
           env.DB.prepare('INSERT INTO jawaban(sesi_id,organ,pemain,salah,petunjuk,poin,soal) VALUES(?,?,?,?,?,?,?)')
-            .bind(id, cut(j.o, 20), cut(j.p, 30), +j.s || 0, +j.h || 0, +j.pt || 0, cut(j.q, 160)));
+            .bind(id, cut(j.o, 20), cut(j.p, 30), +j.s || 0, +j.h || 0, +j.pt || 0, cut(j.q, 160))
+        );
         if (st.length) await env.DB.batch(st);
         return J({ ok: 1 });
       } catch (e) {
@@ -275,13 +110,19 @@ export default {
       }
     }
 
-    // Papan skor publik (dipakai game): skor terbaik tiap siswa, 10 teratas.
-    // Matikan dengan PAPAN_PUBLIK="0" di wrangler.toml kalau nama siswa tidak boleh tampil.
+    // ---------- Papan skor publik ----------
     if (u.pathname === '/api/papan' && req.method === 'GET') {
       if (env.PAPAN_PUBLIK === '0') return J({ top: [] });
       try {
-        const ctx = await authCtx();
-        const tenant = u.searchParams.get('tenant') || (ctx.tenant != null ? ctx.tenant : '');
+        let tenant = u.searchParams.get('tenant') || '';
+        const kode = u.searchParams.get('token') || '';
+        if (kode) {
+          tenant = await tokenTenant(kode);
+          if (!tenant) return J({ top: [] });
+        } else if (tenant && !/^g\d+$/.test(tenant)) {
+          const t = await tokenTenant(tenant);
+          if (t) tenant = t;
+        }
         const sql = tenant
           ? 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi WHERE tenant=? GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10'
           : 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10';
@@ -290,206 +131,428 @@ export default {
           : await env.DB.prepare(sql).all();
         return J({ top: r.results || [] });
       } catch (e) {
-        return J({ top: [] }); // game tetap jalan dengan papan lokal
+        return J({ top: [] });
       }
     }
 
+    // ---------- Rekap guru ----------
     if (u.pathname === '/api/rekap') {
       const ctx = await authCtx();
       if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
-      const t = ctx.tenant; // null = global admin (semua tenant)
-      const sesiWhere = t ? ' WHERE tenant=?' : '';
-      const jawWhere = t ? ' WHERE sesi_id IN (SELECT id FROM sesi WHERE tenant=?)' : '';
-      const bind = (sql, ...args) => t ? env.DB.prepare(sql).bind(t, ...args) : env.DB.prepare(sql).bind(...args);
-      // note: bind order: tenant first then others; queries below have no other params
+      const t = ctx.tenant;
+      const whereSesi = t ? ' WHERE tenant=?' : '';
+      const whereJaw = t ? ' WHERE sesi_id IN (SELECT id FROM sesi WHERE tenant=?)' : '';
+      const ambil = async (sql) => {
+        const st = env.DB.prepare(sql);
+        const r = t ? await st.bind(t).all() : await st.all();
+        return r.results || [];
+      };
       try {
         return J({
-          ringkasan: (await (t ? env.DB.prepare("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi" + sesiWhere).bind(t).all() : env.DB.prepare("SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa,IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi").all())).results,
-          organ: (await (t ? env.DB.prepare('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban' + jawWhere + ' GROUP BY organ').bind(t).all() : env.DB.prepare('SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk FROM jawaban GROUP BY organ').all())).results,
-          siswa: (await (t ? env.DB.prepare('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi' + sesiWhere + ' GROUP BY nama,kelas ORDER BY rata ASC').bind(t).all() : env.DB.prepare('SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir FROM sesi GROUP BY nama,kelas ORDER BY rata ASC').all())).results,
-          soal: (await (t ? env.DB.prepare('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban' + jawWhere + ' GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5').bind(t).all() : env.DB.prepare('SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5').all())).results
+          ringkasan: await ambil(
+            "SELECT COUNT(*) sesi,COUNT(DISTINCT nama||'|'||IFNULL(kelas,'')) siswa," +
+            "IFNULL(ROUND(AVG(skor)),0) rata,IFNULL(MAX(waktu),'-') terakhir FROM sesi" + whereSesi
+          ),
+          organ: await ambil(
+            'SELECT organ,COUNT(*) n,ROUND(AVG(salah),2) rata_salah,' +
+            'ROUND(100.0*SUM(poin=0)/COUNT(*)) pct_gagal,ROUND(100.0*AVG(petunjuk)) pct_petunjuk ' +
+            'FROM jawaban' + whereJaw + ' GROUP BY organ'
+          ),
+          siswa: await ambil(
+            'SELECT nama,kelas,COUNT(*) sesi,ROUND(AVG(skor)) rata,MAX(skor) maks,MAX(waktu) terakhir ' +
+            'FROM sesi' + whereSesi + ' GROUP BY nama,kelas ORDER BY rata ASC'
+          ),
+          soal: await ambil(
+            'SELECT soal,COUNT(*) n,ROUND(AVG(salah),2) rata_salah FROM jawaban' + whereJaw +
+            ' GROUP BY soal HAVING n>=3 ORDER BY rata_salah DESC LIMIT 5'
+          )
         });
       } catch (e) {
         return J({ e: 'db' }, 500);
       }
     }
 
-    // Kelola soal (guru). GET publik untuk game, POST/DELETE butuh kunci admin.
+    // ---------- Soal ----------
     if (u.pathname === '/api/soal') {
       const ctx = await authCtx();
+
       if (req.method === 'GET') {
         try {
-          const tenant = u.searchParams.get('tenant') || (ctx.tenant != null ? ctx.tenant : '');
-          const sql = tenant ? 'SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal WHERE tenant=? ORDER BY id DESC' : 'SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal ORDER BY id DESC';
+          let tenant = '';
+          if (ctx.admin && ctx.tenant != null) {
+            tenant = ctx.tenant; // guru hanya melihat soal miliknya
+          } else {
+            // Siswa hanya boleh memakai token, bukan kode tenant mentah.
+            const kode = u.searchParams.get('token') || '';
+            if (!kode) return J({ list: [] });
+            tenant = await tokenTenant(kode);
+            if (!tenant) return J({ list: [] });
+          }
+          // Guru melihat soal miliknya saja. Siswa melihat soal bawaan + soal gurunya.
+          const sql = ctx.admin && tenant
+            ? 'SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal WHERE tenant=? ORDER BY id DESC'
+            : tenant
+              ? "SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal WHERE tenant IN ('',?) ORDER BY id DESC"
+              : "SELECT id,organ,level,pertanyaan,opsi,jawaban,pembahasan FROM soal WHERE tenant='' ORDER BY id DESC";
           const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
           return J({ list: r.results || [] });
-        } catch (e) { return J({ list: [] }); }
+        } catch (e) {
+          return J({ list: [] });
+        }
       }
+
       if (req.method === 'POST') {
         if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
         let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
         const organ = cut(d.organ, 20).trim();
         const pertanyaan = cut(d.pertanyaan, 300).trim();
         if (!organ || !pertanyaan) return J({ e: 'data' }, 400);
+        let opsi = d.opsi;
+        if (Array.isArray(opsi)) opsi = JSON.stringify(opsi.map(x => cut(x, 80)).filter(Boolean).slice(0, 6));
+        else opsi = cut(opsi, 500);
         const tenant = ctx.tenant != null ? ctx.tenant : cut(d.tenant, 40).trim();
         try {
-          const r = await env.DB.prepare('INSERT INTO soal(tenant,organ,level,pertanyaan,opsi,jawaban,pembahasan) VALUES(?,?,?,?,?,?,?)')
-            .bind(tenant, organ, +d.level || 1, pertanyaan, cut(d.opsi, 500), +d.jawaban || 0, cut(d.pembahasan, 300)).run();
+          const r = await env.DB.prepare(
+            'INSERT INTO soal(tenant,organ,level,pertanyaan,opsi,jawaban,pembahasan) VALUES(?,?,?,?,?,?,?)'
+          ).bind(tenant, organ, +d.level || 1, pertanyaan, opsi, +d.jawaban || 0, cut(d.pembahasan, 300)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
-        } catch (e) { return J({ e: 'db' }, 500); }
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
       }
+
       if (req.method === 'DELETE') {
         if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
         const id = +u.searchParams.get('id');
         if (!id) return J({ e: 'id' }, 400);
-        try { await env.DB.prepare('DELETE FROM soal WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
-        catch (e) { return J({ e: 'db' }, 500); }
+        try {
+          if (ctx.owner) await env.DB.prepare('DELETE FROM soal WHERE id=?').bind(id).run();
+          else await env.DB.prepare('DELETE FROM soal WHERE id=? AND tenant=?').bind(id, ctx.tenant).run();
+          return J({ ok: 1 });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
       }
     }
-    // Kelola akun murid (guru)
+
+    // ---------- Murid ----------
     if (u.pathname === '/api/murid') {
       const ctx = await authCtx();
       if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
       const tenant = ctx.tenant != null ? ctx.tenant : '';
+
       if (req.method === 'GET') {
         try {
-          const sql = tenant ? 'SELECT id,nama,kelas,pin FROM murid WHERE tenant=? ORDER BY nama' : 'SELECT id,nama,kelas,pin FROM murid ORDER BY nama';
+          const sql = tenant
+            ? 'SELECT id,nama,kelas FROM murid WHERE tenant=? ORDER BY nama'
+            : 'SELECT id,nama,kelas FROM murid ORDER BY nama';
           const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
           return J({ list: r.results || [] });
-        } catch (e) { return J({ list: [] }); }
+        } catch (e) {
+          return J({ list: [] });
+        }
       }
+
       if (req.method === 'POST') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
         let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
         const nama = cut(d.nama, 30).trim();
         if (!nama) return J({ e: 'nama' }, 400);
         try {
-          const c = await (tenant ? env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?').bind(tenant) : env.DB.prepare('SELECT COUNT(*) n FROM murid')).first();
-          if ((c?.n||0) >= 50) return J({ e: 'max50' }, 403);
+          const c = await (tenant
+            ? env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?').bind(tenant)
+            : env.DB.prepare('SELECT COUNT(*) n FROM murid')).first();
+          if ((c?.n || 0) >= 50) return J({ e: 'max50' }, 403);
           const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
             .bind(tenant, nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
-        } catch (e) { return J({ e: 'db' }, 500); }
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
       }
+
       if (req.method === 'DELETE') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
         const id = +u.searchParams.get('id');
         if (!id) return J({ e: 'id' }, 400);
-        try { await env.DB.prepare('DELETE FROM murid WHERE id=?').bind(id).run(); return J({ ok: 1 }); }
-        catch (e) { return J({ e: 'db' }, 500); }
+        try {
+          if (ctx.owner) await env.DB.prepare('DELETE FROM murid WHERE id=?').bind(id).run();
+          else await env.DB.prepare('DELETE FROM murid WHERE id=? AND tenant=?').bind(id, ctx.tenant).run();
+          return J({ ok: 1 });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
       }
     }
 
-    async function authCtx() {
-      const auth = req.headers.get('Authorization') || '';
-      const tok = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-      if (!tok) return { admin: false, tenant: null, user: null };
-      if (tok === env.ADMIN_KEY) return { admin: true, tenant: null, user: null };
-      try {
-        const u = await env.DB.prepare('SELECT id,role,tenant,nama FROM users WHERE token=?').bind(tok).first();
-        if (u) return { admin: u.role === 'guru', tenant: u.tenant, user: u };
-      } catch (e) {}
-      return { admin: false, tenant: null, user: null };
-    }
-
-    // Autentikasi server-side (akun siswa/guru) + multi-tenant
+    // ---------- Akun guru ----------
     if (u.pathname === '/api/auth/register' && req.method === 'POST') {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      if (d.role && d.role !== 'guru') return J({ e: 'role' }, 400);
       const nama = cut(d.nama, 30).trim();
       const pin = cut(d.pin, 16);
-      if (!nama || !pin) return J({ e: 'data' }, 400);
-      const role = d.role === 'guru' ? 'guru' : 'siswa';
-      const tenantInput = cut(d.tenant, 40).trim();
-      const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
-      const paycode = cut(d.paycode, 40).trim();
-      const paid = (role === 'guru' && paycode) ? 1 : 0;
+      if (!nama) return J({ e: 'nama' }, 400);
+      if (pin.length < 4) return J({ e: 'pin' }, 400);
+
       try {
-        const h = await sha256(pin);
-        const r = await env.DB.prepare('INSERT INTO users(role,tenant,nama,kelas,email,pin_hash,token,paid) VALUES(?,?,?,?,?,?,?,?)')
-          .bind(role, role === 'guru' ? '' : tenantInput, nama, cut(d.kelas, 12), cut(d.email, 60), h, token, paid).run();
+        const cek = await env.DB.prepare("SELECT id FROM users WHERE role='guru' AND lower(nama)=lower(?)").bind(nama).first();
+        if (cek) return J({ e: 'nama_dipakai' }, 409);
+
+        let hari = TRIAL_DAYS;
+        let trial = 1;
+        let kode = '';
+        if (d.kode) {
+          kode = cut(d.kode, 40).trim().toUpperCase();
+          const k = await env.DB.prepare('SELECT kode,hari FROM kode_bayar WHERE kode=? AND dipakai_oleh IS NULL').bind(kode).first();
+          if (!k) return J({ e: 'kode' }, 400);
+          hari = Math.max(1, Math.min(3650, +k.hari || DEFAULT_DAYS));
+          trial = 0;
+        }
+
+        const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const hash = await sha256(pin);
+        const until = `datetime('now','+8 hours','+${hari} day')`;
+        const r = await env.DB.prepare(
+          `INSERT INTO users(role,tenant,nama,pin_hash,token,paid,paid_until) VALUES('guru','',?,?,?,1,${until})`
+        ).bind(nama, hash, token).run();
         const id = r.meta.last_row_id;
-        const tenant = role === 'guru' ? ('g' + id) : (tenantInput || '');
-        if (role === 'guru') await env.DB.prepare('UPDATE users SET tenant=? WHERE id=?').bind(tenant, id).run();
-        if (paid) await env.DB.prepare("UPDATE users SET paid_until=datetime('now','+8 hours','+30 day') WHERE id=?").bind(id).run();
-        return J({ ok: 1, id, role, nama, tenant, token, paid });
-      } catch (e) { return J({ e: 'db' }, 500); }
+        const tenant = 'g' + id;
+        await env.DB.prepare('UPDATE users SET tenant=? WHERE id=?').bind(tenant, id).run();
+
+        if (kode) {
+          const pakai = await env.DB.prepare(
+            "UPDATE kode_bayar SET dipakai_oleh=?, dipakai=datetime('now','+8 hours') WHERE kode=? AND dipakai_oleh IS NULL"
+          ).bind(id, kode).run();
+          if (!pakai.meta.changes) {
+            await env.DB.prepare('DELETE FROM users WHERE id=?').bind(id).run();
+            return J({ e: 'kode' }, 400);
+          }
+        }
+
+        const row = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(id).first();
+        return J({
+          ok: 1, token,
+          user: { id, role: 'guru', tenant, nama, active: 1, paid_until: row?.paid_until || '', trial }
+        });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
     }
+
     if (u.pathname === '/api/auth/login' && req.method === 'POST') {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
       const nama = cut(d.nama, 30).trim();
       const pin = cut(d.pin, 16);
       if (!nama || !pin) return J({ e: 'data' }, 400);
       try {
-        const h = await sha256(pin);
-        const r = await env.DB.prepare('SELECT id,role,tenant,nama,kelas,paid FROM users WHERE nama=? AND pin_hash=?').bind(nama, h).first();
+        const hash = await sha256(pin);
+        const r = await env.DB.prepare(
+          "SELECT id,role,tenant,nama,kelas,paid,paid_until," +
+          "CASE WHEN paid=1 AND paid_until IS NOT NULL AND paid_until >= datetime('now','+8 hours') THEN 1 ELSE 0 END AS active " +
+          "FROM users WHERE role='guru' AND lower(nama)=lower(?) AND pin_hash=?"
+        ).bind(nama, hash).first();
         if (!r) return J({ e: 'login' }, 401);
         const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
         await env.DB.prepare('UPDATE users SET token=? WHERE id=?').bind(token, r.id).run();
-        return J({ ok: 1, user: { id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas, paid: r.paid, token } });
-      } catch (e) { return J({ e: 'db' }, 500); }
+        return J({
+          ok: 1,
+          user: {
+            id: r.id, role: r.role, tenant: r.tenant, nama: r.nama, kelas: r.kelas,
+            paid: r.paid, paid_until: r.paid_until, active: r.active, token
+          }
+        });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
     }
 
-    // Validasi token akses harian
+    if (u.pathname === '/api/auth/me' && req.method === 'GET') {
+      const ctx = await authCtx();
+      if (!ctx.user) return J({ e: 'unauthorized' }, 401);
+      return J({
+        ok: 1,
+        user: {
+          id: ctx.user.id, role: ctx.user.role, tenant: ctx.user.tenant, nama: ctx.user.nama,
+          kelas: ctx.user.kelas, paid: ctx.user.paid, paid_until: ctx.user.paid_until, active: ctx.active
+        }
+      });
+    }
+
+    // ---------- Token akses siswa ----------
     if (u.pathname === '/api/token/validate' && req.method === 'POST') {
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
-      const kode = cut(d.kode, 40).trim();
+      const kode = cut(d.kode, 40).trim().toUpperCase();
       if (!kode) return J({ e: 'data' }, 400);
       try {
-        const r = await env.DB.prepare("SELECT tenant,expires_at FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')").bind(kode).first();
+        const r = await env.DB.prepare(
+          "SELECT tenant,expires_at FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')"
+        ).bind(kode).first();
         if (!r) return J({ e: 'token' }, 404);
-        return J({ ok: 1, tenant: r.tenant });
-      } catch (e) { return J({ e: 'db' }, 500); }
+        return J({ ok: 1, tenant: r.tenant, expires_at: r.expires_at });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
     }
-    // Buat token (guru)
+
     if (u.pathname === '/api/token/create' && req.method === 'POST') {
       const ctx = await authCtx();
       if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+      if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
       const tenant = ctx.tenant != null ? ctx.tenant : '';
-      const kode = Math.random().toString(36).slice(2, 8).toUpperCase();
       try {
-        await env.DB.prepare("INSERT INTO token(tenant,kode,harga,expires_at) VALUES(?,?,10000,datetime('now','+8 hours','+1 day'))").bind(tenant, kode).run();
-        return J({ ok: 1, kode });
-      } catch (e) { return J({ e: 'db' }, 500); }
-    }
-    // Daftar siswa untuk game (publik, berdasarkan token/tenant)
-    if (u.pathname === '/api/siswa' && req.method === 'GET') {
-      try {
-        const kode = u.searchParams.get('token');
-        let tenant = u.searchParams.get('tenant') || '';
-        if (kode) {
-          const r = await env.DB.prepare("SELECT tenant FROM token WHERE kode=? AND expires_at >= datetime('now','+8 hours')").bind(kode).first();
-          if (!r) return J({ list: [] });
-          tenant = r.tenant;
+        const lama = await env.DB.prepare(
+          "SELECT kode,expires_at FROM token WHERE tenant=? AND expires_at >= datetime('now','+8 hours') ORDER BY id DESC LIMIT 1"
+        ).bind(tenant).first();
+        if (lama) return J({ ok: 1, kode: lama.kode, expires_at: lama.expires_at, lama: 1 });
+
+        let kode = '';
+        for (let i = 0; i < 6; i++) {
+          const c = kodeAcak(6);
+          const cek = await env.DB.prepare('SELECT id FROM token WHERE kode=?').bind(c).first();
+          if (!cek) { kode = c; break; }
         }
-        const sql = tenant ? 'SELECT id,nama,kelas FROM murid WHERE tenant=? ORDER BY nama' : 'SELECT id,nama,kelas FROM murid ORDER BY nama';
-        const r = tenant ? await env.DB.prepare(sql).bind(tenant).all() : await env.DB.prepare(sql).all();
-        return J({ list: r.results || [] });
-      } catch (e) { return J({ list: [] }); }
+        if (!kode) return J({ e: 'db' }, 500);
+        await env.DB.prepare(
+          "INSERT INTO token(tenant,kode,harga,expires_at) VALUES(?,?,10000,datetime('now','+8 hours','+1 day'))"
+        ).bind(tenant, kode).run();
+        const row = await env.DB.prepare('SELECT expires_at FROM token WHERE kode=?').bind(kode).first();
+        return J({ ok: 1, kode, expires_at: row?.expires_at || '' });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
     }
 
-    // Aktivasi pembayaran guru (kode bayar)
-    if (u.pathname === '/api/pay/activate' && req.method === 'POST') {
+    if (u.pathname === '/api/token/list' && req.method === 'GET') {
+      const ctx = await authCtx();
+      if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
+      const tenant = ctx.tenant != null ? ctx.tenant : '';
+      try {
+        const r = await env.DB.prepare(
+          "SELECT kode,expires_at FROM token WHERE tenant=? AND expires_at >= datetime('now','+8 hours') ORDER BY id DESC"
+        ).bind(tenant).all();
+        return J({ list: r.results || [] });
+      } catch (e) {
+        return J({ list: [] });
+      }
+    }
+
+    // ---------- Siswa ----------
+    if (u.pathname === '/api/siswa' && req.method === 'GET') {
+      try {
+        const kode = u.searchParams.get('token') || '';
+        const tenant = await tokenTenant(kode);
+        if (!tenant) return J({ list: [] });
+        const r = await env.DB.prepare('SELECT id,nama,kelas FROM murid WHERE tenant=? ORDER BY nama').bind(tenant).all();
+        return J({ list: r.results || [] });
+      } catch (e) {
+        return J({ list: [] });
+      }
+    }
+
+    if (u.pathname === '/api/siswa/login' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.token, 40).trim().toUpperCase();
+      const id = +d.id;
+      const pin = cut(d.pin, 8);
+      if (!kode || !id) return J({ e: 'data' }, 400);
+      try {
+        const tenant = await tokenTenant(kode);
+        if (!tenant) return J({ e: 'token' }, 404);
+        const r = await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid WHERE id=? AND tenant=?').bind(id, tenant).first();
+        if (!r) return J({ e: 'siswa' }, 404);
+        if (r.pin && String(r.pin) !== pin) return J({ e: 'pin' }, 401);
+        return J({ ok: 1, siswa: { id: r.id, nama: r.nama, kelas: r.kelas, tenant } });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
+    }
+
+    // ---------- Pembayaran ----------
+    if (u.pathname === '/api/pay/verify' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.kode, 40).trim().toUpperCase();
+      if (!kode) return J({ e: 'data' }, 400);
+      try {
+        const r = await env.DB.prepare('SELECT kode,hari FROM kode_bayar WHERE kode=? AND dipakai_oleh IS NULL').bind(kode).first();
+        if (!r) return J({ e: 'kode' }, 400);
+        return J({ ok: 1, hari: r.hari });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
+    }
+
+    if (u.pathname === '/api/pay/redeem' && req.method === 'POST') {
       const ctx = await authCtx();
       if (!ctx.user) return J({ e: 'unauthorized' }, 401);
       let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
-      const kode = cut(d.kode, 40).trim();
-      // kode pembayaran sederhana: PAY-<tenant> atau kode apa pun (MVP)
+      const kode = cut(d.kode, 40).trim().toUpperCase();
       if (!kode) return J({ e: 'data' }, 400);
       try {
-        await env.DB.prepare("UPDATE users SET paid=1, paid_until=datetime('now','+8 hours','+30 day') WHERE id=?").bind(ctx.user.id).run();
-        return J({ ok: 1 });
-      } catch (e) { return J({ e: 'db' }, 500); }
+        const k = await env.DB.prepare('SELECT kode,hari FROM kode_bayar WHERE kode=? AND dipakai_oleh IS NULL').bind(kode).first();
+        if (!k) return J({ e: 'kode' }, 400);
+        const hari = Math.max(1, Math.min(3650, +k.hari || DEFAULT_DAYS));
+        const pakai = await env.DB.prepare(
+          "UPDATE kode_bayar SET dipakai_oleh=?, dipakai=datetime('now','+8 hours') WHERE kode=? AND dipakai_oleh IS NULL"
+        ).bind(ctx.user.id, kode).run();
+        if (!pakai.meta.changes) return J({ e: 'kode' }, 400);
+        await env.DB.prepare(
+          "UPDATE users SET paid=1, paid_until=datetime(" +
+          "CASE WHEN paid_until IS NOT NULL AND paid_until >= datetime('now','+8 hours') " +
+          "THEN paid_until ELSE datetime('now','+8 hours') END, '+" + hari + " day') WHERE id=?"
+        ).bind(ctx.user.id).run();
+        const row = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(ctx.user.id).first();
+        return J({ ok: 1, paid_until: row?.paid_until || '', hari });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
     }
 
-    // Verifikasi kode pembayaran (gate sebelum daftar guru)
-    if (u.pathname === '/api/pay/verify' && req.method === 'POST') {
-      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
-      const kode = cut(d.kode, 40).trim();
-      if (!kode) return J({ e: 'data' }, 400);
-      // Mode uji coba: terima kode GRATIS/COBA/TEST agar bisa dicoba tanpa bayar.
-      // Untuk produksi, ganti dengan validasi kode pembayaran asli.
-      return J({ ok: 1 });
+    // ---------- Panel pemilik ----------
+    if (u.pathname === '/api/owner/kode') {
+      const ctx = await authCtx();
+      if (!ctx.owner) return J({ e: 'unauthorized' }, 401);
+
+      if (req.method === 'GET') {
+        try {
+          const r = await env.DB.prepare(
+            'SELECT kode,hari,dibuat FROM kode_bayar WHERE dipakai_oleh IS NULL ORDER BY dibuat DESC LIMIT 100'
+          ).all();
+          return J({ list: r.results || [] });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
+
+      if (req.method === 'POST') {
+        let d; try { d = await req.json(); } catch { d = {}; }
+        const jumlah = Math.max(1, Math.min(50, +d.jumlah || 10));
+        const hari = Math.max(1, Math.min(3650, +d.hari || DEFAULT_DAYS));
+        const list = [];
+        try {
+          for (let i = 0; i < jumlah; i++) {
+            for (let coba = 0; coba < 6; coba++) {
+              const kode = 'PCN-' + kodeAcak(4) + '-' + kodeAcak(4);
+              const r = await env.DB.prepare('INSERT OR IGNORE INTO kode_bayar(kode,hari) VALUES(?,?)').bind(kode, hari).run();
+              if (r.meta.changes) { list.push({ kode, hari }); break; }
+            }
+          }
+          return J({ ok: 1, list });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
     }
 
-    if (u.pathname === '/admin') return new Response(PAGE, { headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' } });
+    // Halaman admin lama dialihkan ke halaman statis di GitHub Pages.
+    if (u.pathname === '/admin') {
+      return new Response(null, {
+        status: 302,
+        headers: { Location: ADMIN_URL, 'Cache-Control': 'no-store' }
+      });
+    }
+
     return J({ ok: 1, info: 'API Petualangan Makanan' });
   }
 };

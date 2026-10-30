@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Petualangan Makanan: Sistem Pencernaan</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#ff7a6b">
+<meta name="theme-color" content="#c9a96e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8D%BD%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -83,7 +83,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 
 <section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masukkan token akses dari guru (Rp 10.000 / hari)</p><div class="res">
 <input id="tk" placeholder="Kode token (6 karakter)" maxlength="8">
-<button class="btn" id="vt">Verifikasi Token</button>
+<button class="btn" id="vtoken">Verifikasi Token</button>
 <p id="lm" class="sub" style="margin-top:8px"></p>
 <div id="studentPick" style="display:none;margin-top:10px">
   <select id="st" style="width:100%;padding:12px;border-radius:14px;border:3px solid var(--soft);font:inherit"></select>
@@ -98,7 +98,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
  <h1>🍽️ Petualangan Makanan</h1>
  <p class="sub">Pilih makananmu, lalu temani dia berpetualang di sistem pencernaan!</p>
  <div class="foods" id="foods"></div>
- <div class="set"><div class="pick"><b id="who"></b><button class="chip" id="out">Keluar</button></div><div class="pick"><b>Kategori</b><span id="gm"><button class="chip sel" data-v="solo">🧍 Solo</button><button class="chip" data-v="tim">👥 Tim</button></span></div><div id="tm" style="display:none;max-width:420px;margin:0 auto 10px"><input id="tn" placeholder="Nama anggota tim, pisah koma (2-4 orang)"></div><div class="pick"><b>Pilih levelmu</b><span id="lv"><button class="chip" data-v="0">🌱 Pemula</button><button class="chip sel" data-v="1">🚀 Jagoan</button><button class="chip" data-v="2">👑 Master</button></span></div><div class="pick"><b>Cara belajar</b><span id="md"><button class="chip sel" data-v="0">📖 Baca</button><button class="chip" data-v="1">🔊 Dengar</button></span><select id="vsel" style="display:none"></select><button class="chip" id="vt" style="display:none">🔈 Tes suara</button><small id="vs" style="display:block"></small></div><p class="sub" style="font-size:.85rem">Pemula: soal mudah dan ada kartu materi dulu. Jagoan: soal sedang. Master: soal sulit. Mode Dengar: soal dibacakan suara.</p></div><button class="btn" id="go" disabled>Mulai Petualangan!</button>
+ <div class="set"><div class="pick"><b id="who"></b><button class="chip" id="out">Keluar</button></div><div class="pick"><b>Kategori</b><span id="gm"><button class="chip sel" data-v="solo">🧍 Solo</button><button class="chip" data-v="tim">👥 Tim</button></span></div><div id="tm" style="display:none;max-width:420px;margin:0 auto 10px"><input id="tn" placeholder="Nama anggota tim, pisah koma (2-4 orang)"></div><div class="pick"><b>Pilih levelmu</b><span id="lv"><button class="chip" data-v="0">🌱 Pemula</button><button class="chip sel" data-v="1">🚀 Jagoan</button><button class="chip" data-v="2">👑 Master</button></span></div><div class="pick"><b>Cara belajar</b><span id="md"><button class="chip sel" data-v="0">📖 Baca</button><button class="chip" data-v="1">🔊 Dengar</button></span><select id="vsel" style="display:none"></select><button class="chip" id="vtest" style="display:none">🔈 Tes suara</button><small id="vs" style="display:block"></small></div><p class="sub" style="font-size:.85rem">Pemula: soal mudah dan ada kartu materi dulu. Jagoan: soal sedang. Master: soal sulit. Mode Dengar: soal dibacakan suara.</p></div><button class="btn" id="go" disabled>Mulai Petualangan!</button>
 </section>
 
 <section id="s-game" class="screen">
@@ -189,8 +189,8 @@ function board(){const my=ME&&DB.get()[ME]?DB.get()[ME].name:'';const loc=Object
   $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa · 10 teratas</p>'
  }).catch(()=>{})}
 function showStart(){const m=DB.get()[ME];$('who').textContent='👤 '+m.name+' · Rekor solo: '+m.best+' · Main: '+m.plays+'x ';show('s-start');board()}
-let currentToken='',currentStudents=[];
-$('vt').onclick=async()=>{
+let currentToken='',currentTenant='',currentStudents=[];
+$('vtoken').onclick=async()=>{
   const kode=$('tk').value.trim().toUpperCase();
   if(!kode){$('lm').textContent='Masukkan token.';return}
   if(!API_URL){$('lm').textContent='Server belum terhubung.';return}
@@ -198,7 +198,7 @@ $('vt').onclick=async()=>{
     const r=await fetch(API_URL+'/api/token/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})});
     const d=await r.json();
     if(!r.ok||!d.tenant){$('lm').textContent='Token tidak valid atau kedaluwarsa.';SFX.bad();return}
-    currentToken=kode;
+    currentToken=kode;currentTenant=d.tenant||'';
     const sr=await fetch(API_URL+'/api/siswa?token='+encodeURIComponent(kode));
     const sd=await sr.json();
     const list=Array.isArray(sd.list)?sd.list:[];
@@ -210,32 +210,62 @@ $('vt').onclick=async()=>{
     SFX.ok();
   }catch(e){$('lm').textContent='Gagal menghubungi server.';SFX.bad()}
 };
-$('lg').onclick=()=>{
+$('lg').onclick=async()=>{
   const sel=$('st');const opt=sel.options[sel.selectedIndex];
-  const name=opt?opt.textContent.split(' (')[0]:'';
+  const id=opt?+opt.value:0;
   const pin=$('sp').value.trim();
-  const student=currentStudents.find(s=>s.nama===name);
+  const student=currentStudents.find(s=>+s.id===id);
   if(!student){$('lm').textContent='Pilih siswa.';return}
-  if(student.pin && student.pin!==pin){$('lm').textContent='PIN salah.';SFX.bad();return}
-  const k=name.toLowerCase();
-  const u=DB.get();
-  u[k]={name, pin:hs((pin||'0000')+k), kelas:student.kelas||'', tenant:currentToken, best:u[k]?.best||0, plays:u[k]?.plays||0, team:u[k]?.team||0, hist:u[k]?.hist||[]};
-  DB.set(u);ME=k;$('lm').textContent='';SFX.ok();showStart();
+  try{
+    const r=await fetch(API_URL+'/api/siswa/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:currentToken,id,pin})});
+    const d=await r.json();
+    if(!r.ok){$('lm').textContent=d.e==='pin'?'PIN salah.':'Gagal masuk. Coba lagi.';SFX.bad();return}
+    const k='s'+student.id;
+    const u=DB.get();
+    u[k]={name:d.siswa.nama, pin:hs((pin||'0000')+k), kelas:d.siswa.kelas||'', tenant:d.siswa.tenant||currentTenant, token:currentToken, best:u[k]?.best||0, plays:u[k]?.plays||0, team:u[k]?.team||0, hist:u[k]?.hist||[]};
+    DB.set(u);ME=k;$('lm').textContent='';$('sp').value='';
+    await loadCustomQuestions(currentToken);
+    SFX.ok();showStart();
+  }catch(e){$('lm').textContent='Gagal menghubungi server.';SFX.bad()}
 };
+const ST_BASE=JSON.parse(JSON.stringify(ST));
+const X_BASE=JSON.parse(JSON.stringify(X));
+async function loadCustomQuestions(token){
+  try{
+    ST.length=0;ST.push(...JSON.parse(JSON.stringify(ST_BASE)));
+    X.length=0;X.push(...JSON.parse(JSON.stringify(X_BASE)));
+    if(!API_URL||!token)return;
+    const r=await fetch(API_URL+'/api/soal?token='+encodeURIComponent(token));
+    const d=await r.json();
+    const list=Array.isArray(d.list)?d.list:[];
+    const idx={};ST.forEach((st,i)=>{idx[st.k.toLowerCase()]=i});
+    list.forEach(q=>{
+      const i=idx[String(q.organ||'').trim().toLowerCase()];
+      if(i==null)return;
+      let opsi=[];try{opsi=JSON.parse(q.opsi)}catch(e){opsi=String(q.opsi||'').split('|')}
+      if(!Array.isArray(opsi))return;
+      opsi=opsi.map(x=>String(x).trim()).filter(Boolean);
+      if(opsi.length<2)return;
+      const item=[String(q.pertanyaan||''),opsi,Math.max(0,Math.min(opsi.length-1,+q.jawaban||0)),String(q.pembahasan||'')];
+      const lv=+q.level||0;
+      if(lv===0)X[i].m.push(item);else if(lv===2)X[i].s.push(item);else ST[i].q.push(item);
+    });
+  }catch(e){}
+}
 $('out').onclick=()=>{ME=null;board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=()=>{pickVoice();vstat()}}
-vstat();board();if(API_URL){const g=$('guruLink');if(g)g.href=API_URL+'/admin'}else{const g=$('guruLink');if(g)g.style.display='none'}
+vstat();board();if(API_URL){const g=$('guruLink');if(g)g.href=location.hostname.endsWith('github.io')?new URL('admin.html',location.href).href:API_URL+'/admin'}else{const g=$('guruLink');if(g)g.style.display='none'}
 function cam(s,x,y){const c=Math.min(0,Math.max(100-100*s,50-s*x)),d=Math.min(0,Math.max(100-100*s,50-s*y));$('cam').style.transform=`translate(${c}%,${d}%) scale(${s})`}
 function speak(t,f){try{if(mute||!('speechSynthesis' in window)||(MODE==0&&!f))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='id-ID';if(VOI)u.voice=VOI;u.rate=.95;u.pitch=1.1;speechSynthesis.speak(u)}catch(e){}}
 function vlist(){try{return speechSynthesis.getVoices().filter(v=>/^id([-_]|$)/i.test(v.lang)||/indonesia/i.test(v.name))}catch(e){return[]}}
 function pickVoice(){let s=null;try{s=localStorage.getItem('pcn_voice')}catch(e){}const l=vlist();VOI=l.find(v=>v.name===s)||l.find(v=>/natural|google|gadis|damayanti|andika/i.test(v.name))||l[0]||null}
-function vstat(){const l=vlist(),e=$('vsel');e.innerHTML=l.map(v=>'<option'+(VOI&&v.name==VOI.name?' selected':'')+'>'+esc(v.name)+'</option>').join('');e.style.display=$('vt').style.display=l.length?'':'none';$('vs').textContent=l.length?'':'⚠️ Suara bahasa Indonesia belum terpasang di perangkat ini. Pasang paket suara Indonesia di pengaturan Teks-ke-ucapan, lalu muat ulang.'}
+function vstat(){const l=vlist(),e=$('vsel');e.innerHTML=l.map(v=>'<option'+(VOI&&v.name==VOI.name?' selected':'')+'>'+esc(v.name)+'</option>').join('');e.style.display=$('vtest').style.display=l.length?'':'none';$('vs').textContent=l.length?'':'⚠️ Suara bahasa Indonesia belum terpasang di perangkat ini. Pasang paket suara Indonesia di pengaturan Teks-ke-ucapan, lalu muat ulang.'}
 $('vsel').onchange=()=>{VOI=vlist().find(v=>v.name===$('vsel').value)||VOI;try{localStorage.setItem('pcn_voice',VOI.name)}catch(e){}speak('Halo! Aku siap menemani petualanganmu.',1)};
-$('vt').onclick=()=>speak('Halo! Aku siap menemani petualanganmu.',1);
+$('vtest').onclick=()=>speak('Halo! Aku siap menemani petualanganmu.',1);
 function post(d){if(!API_URL)return;fetch(API_URL+'/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(r=>{if(!r.ok)throw 0}).catch(()=>{try{const q=JSON.parse(localStorage.getItem('pcn_q')||'[]');q.push(d);localStorage.setItem('pcn_q',JSON.stringify(q.slice(-20)))}catch(e){}})}
-function sendLog(){const m=DB.get()[ME]||{};post({nama:m.name||'',kelas:m.kelas||'',tenant:m.tenant||'',mode:TEAM.length?'tim':'solo',tim:TEAM.join(', '),level:LVL,makanan:G.f.n,skor:G.score,jawaban:G.log||[]})}
+function sendLog(){const m=DB.get()[ME]||{};post({nama:m.name||'',kelas:m.kelas||'',tenant:m.tenant||'',token:m.token||'',mode:TEAM.length?'tim':'solo',tim:TEAM.join(', '),level:LVL,makanan:G.f.n,skor:G.score,jawaban:G.log||[]})}
 try{const q=JSON.parse(localStorage.getItem('pcn_q')||'[]');localStorage.removeItem('pcn_q');q.forEach(post)}catch(e){}
 function hud(){if(G.i!=null){const h=ST.map((s,i)=>'<span class="stp '+(i<G.i?'done':i==G.i?'on':'')+'">'+(i<G.i?'✅':i==G.i?'📍':'⚪')+' '+s.k+'</span>').join('');$('steps').innerHTML=h;$('stepsTop').innerHTML=h}$('hs').textContent='⭐ '+G.score;
  $('hl').textContent=G.lives==null?'':'❤️'.repeat(G.lives)+'🖤'.repeat(3-G.lives);
@@ -258,7 +288,7 @@ function ask(){const st=ST[G.i];G.lives=3;G.done=false;const pool=LVL==0?X[G.i].
 function burst(x,y,a){for(let i=0;i<14;i++){const s=document.createElement('span');s.className='cf';s.textContent=a[i%a.length];
  s.style.left=x+'%';s.style.top=y+'%';s.style.setProperty('--dx',(Math.random()*180-90)+'px');s.style.setProperty('--dy',(Math.random()*-150-20)+'px');
  $('cam').appendChild(s);setTimeout(()=>s.remove(),1000)}}
-function done(pts){clearTimer();G.done=true;G.score+=pts;G.res.push(pts);(G.log=G.log||[]).push({o:ST[G.i].k,p:TEAM.length?TEAM[G.i%TEAM.length]:'',s:3-G.lives,h:G.hint,pt:pts,q:G.q[0]});if(TEAM.length)G.ps[G.i%TEAM.length]+=pts;hud();speak('Jawaban benar: '+G.q[1][G.q[2]]+'. '+X[G.i].d);$('fb').insertAdjacentHTML('afterend','<div class="intro" style="margin-top:10px">📘 Pembahasan: jawaban benar = <b>'+G.q[1][G.q[2]]+'</b>. '+X[G.i].d+(G.i==3?'<small>🍽️ Khusus '+G.f.n+': '+FACT[G.f.n]+'</small>':'')+'</div>');const last=G.i==ST.length-1;
+function done(pts){clearTimer();G.done=true;G.score+=pts;G.res.push(pts);(G.log=G.log||[]).push({o:ST[G.i].k,p:TEAM.length?TEAM[G.i%TEAM.length]:'',s:3-G.lives,h:G.hint,pt:pts,q:G.q[0]});if(TEAM.length)G.ps[G.i%TEAM.length]+=pts;hud();speak('Jawaban benar: '+G.q[1][G.q[2]]+'. '+(G.q[3]||X[G.i].d));$('fb').insertAdjacentHTML('afterend','<div class="intro" style="margin-top:10px">📘 Pembahasan: jawaban benar = <b>'+G.q[1][G.q[2]]+'</b>. '+(G.q[3]||X[G.i].d)+(G.i==3?'<small>🍽️ Khusus '+G.f.n+': '+FACT[G.f.n]+'</small>':'')+'</div>');const last=G.i==ST.length-1;
  $('qin').insertAdjacentHTML('beforeend',`<button class="btn" id="next" style="margin-top:12px">${last?'Lihat Hasil 🎉':'Lanjut ➜'}</button>`);setTimeout(()=>{const n=$('next');if(n&&n.scrollIntoView)n.scrollIntoView({block:'nearest'})},60)}
 $('panel').onclick=e=>{
  if(e.target.id=='say'){speak(G.sp,1);return}if(e.target.id=='hint'){if(G.hint||G.lives<=0)return;const w=[...document.querySelectorAll('.opt:not(:disabled)')].filter(x=>+x.dataset.i!==G.q[2]);if(w.length>1){const x=w[Math.random()*w.length|0];x.disabled=true;x.style.opacity=.35;G.hint=1;e.target.disabled=true;SFX.pop()}return}const nx=e.target.closest('#next');if(nx){nx.disabled=true;G.i==ST.length-1?finish():enter(G.i+1);return}

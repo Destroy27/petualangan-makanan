@@ -43,6 +43,19 @@ CREATE TABLE IF NOT EXISTS users(
   created_at TEXT DEFAULT (datetime('now','+8 hours'))
 );
 
+CREATE TABLE IF NOT EXISTS kode_bayar(
+  kode TEXT PRIMARY KEY,
+  hari INTEGER DEFAULT 30,
+  dibuat TEXT DEFAULT (datetime('now','+8 hours')),
+  dipakai_oleh INTEGER,
+  dipakai TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_token ON users(token);
+CREATE INDEX IF NOT EXISTS idx_users_nama ON users(nama);
+CREATE INDEX IF NOT EXISTS idx_murid_tenant ON murid(tenant);
+CREATE INDEX IF NOT EXISTS idx_soal_tenant ON soal(tenant);
+
 CREATE TABLE IF NOT EXISTS token(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tenant TEXT DEFAULT '',
@@ -51,3 +64,5 @@ CREATE TABLE IF NOT EXISTS token(
   expires_at TEXT,
   created_at TEXT DEFAULT (datetime('now','+8 hours'))
 );
+
+CREATE INDEX IF NOT EXISTS idx_token_kode ON token(kode);

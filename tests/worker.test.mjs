@@ -1,6 +1,7 @@
 // Uji worker.js + halaman /admin tanpa akun Cloudflare (D1 palsu).
 // Jalankan: node tests/worker.test.mjs
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import worker from '../worker.js';
 
 const require = createRequire(import.meta.url);
@@ -120,7 +121,7 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
   ok('papan dari origin lain → 403', lain.status === 403, String(lain.status));
 }
 
-// 4) OPTIONS, rute lain, /admin, dan render halaman guru
+// 4) OPTIONS, rute lain, /admin, dan halaman guru statis
 {
   const { env: e } = env();
   const o = await call(e, '/api/log', { method: 'OPTIONS' });
@@ -129,43 +130,60 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
   const x = await call(e, '/apa-saja');
   ok('rute tak dikenal → info JSON', x.status === 200 && (await x.json()).info, '');
   const admin = await call(e, '/admin');
-  const html = await admin.text();
-  ok('/admin mengirim halaman html', /Rekap Petualangan/.test(html) && admin.headers.get('content-type').includes('text/html'));
-  ok('/admin meminta kunci (tidak membocorkan data)', !/Budi/.test(html));
-  ok('ambang bisa diubah dari satu tempat (AMBANG_GAGAL/AMBANG_RATA/MIN_SESI)', /pct_gagal>=30/.test(html) && /rata<250/.test(html) && /sesi>=2/.test(html));
+  ok('/admin dialihkan ke halaman guru', admin.status === 302 && (admin.headers.get('Location') || '').includes('admin.html'), String(admin.status));
+
+  const html = readFileSync(new URL('../admin.html', import.meta.url), 'utf8');
+  ok('halaman guru berisi form masuk dan daftar', /id="formLogin"/.test(html) && /id="formRegister"/.test(html));
+  ok('halaman guru tidak membocorkan data siswa', !/Budi/.test(html));
+  ok('ambang saran tindakan ada di halaman guru', /pct_gagal >= 30/.test(html) && /rata < 250/.test(html) && /sesi >= 2/.test(html));
 
   const dom = new JSDOM(html, {
-    runScripts: 'dangerously', url: 'https://api.test/admin', pretendToBeVisual: true,
+    runScripts: 'dangerously', url: 'https://destroy27.github.io/petualangan-makanan/admin.html', pretendToBeVisual: true,
     beforeParse(w) {
-      w.fetch = async () => ({
-        ok: true, status: 200, json: async () => ({
-          ringkasan: [{ sesi: 6, siswa: 3, rata: 283, terakhir: '2026-10-29 17:00:00' }],
-          organ: [{ organ: 'Mulut', n: 10, rata_salah: 1.4, pct_gagal: 45, pct_petunjuk: 30 }, { organ: 'Anus', n: 8, rata_salah: 0.2, pct_gagal: 12, pct_petunjuk: 0 }],
-          siswa: [{ nama: 'Budi', kelas: 'X-1', sesi: 3, rata: 200, maks: 300, terakhir: '2026-10-29 06:00:00' }, { nama: 'Sari', kelas: 'X-1', sesi: 1, rata: 150, maks: 150, terakhir: '2026-10-29 06:00:00' }, { nama: '<img src=x onerror=alert(1)>', kelas: 'X-2', sesi: 2, rata: 500, maks: 600, terakhir: 'x' }],
-          soal: [{ soal: 'Enzim air liur?', n: 5, rata_salah: 1.2 }]
-        })
-      });
+      w.fetch = async (url, opt = {}) => {
+        const path = String(url).replace('https://pencernaan-api.jejak7-api.workers.dev', '');
+        if (path === '/api/auth/login') {
+          return { ok: true, status: 200, json: async () => ({ ok: 1, user: { id: 1, nama: 'Guru', tenant: 'g1', active: 1, paid_until: '2026-11-29 10:00:00', token: 'TOK' } }) };
+        }
+        if (path === '/api/murid') return { ok: true, status: 200, json: async () => ({ list: [] }) };
+        if (path === '/api/soal') return { ok: true, status: 200, json: async () => ({ list: [] }) };
+        if (path === '/api/token/list') return { ok: true, status: 200, json: async () => ({ list: [] }) };
+        if (path === '/api/rekap') {
+          return {
+            ok: true, status: 200, json: async () => ({
+              ringkasan: [{ sesi: 6, siswa: 3, rata: 283, terakhir: '2026-10-29 17:00:00' }],
+              organ: [{ organ: 'Mulut', n: 10, rata_salah: 1.4, pct_gagal: 45, pct_petunjuk: 30 }, { organ: 'Anus', n: 8, rata_salah: 0.2, pct_gagal: 12, pct_petunjuk: 0 }],
+              siswa: [{ nama: 'Budi', kelas: 'X-1', sesi: 3, rata: 200, maks: 300, terakhir: '2026-10-29 06:00:00' }, { nama: 'Sari', kelas: 'X-1', sesi: 1, rata: 150, maks: 150, terakhir: '2026-10-29 06:00:00' }, { nama: '<img src=x onerror=alert(1)>', kelas: 'X-2', sesi: 2, rata: 500, maks: 600, terakhir: 'x' }],
+              soal: [{ soal: 'Enzim air liur?', n: 5, rata_salah: 1.2 }]
+            })
+          };
+        }
+        return { ok: true, status: 200, json: async () => ({ ok: 1 }) };
+      };
     }
   });
   const w = dom.window, doc = w.document;
-  doc.getElementById('k').value = 'rahasia';
-  doc.querySelector('button').click();
-  await new Promise(r => setTimeout(r, 300));
-  const out = doc.getElementById('o').textContent;
-  const warns = doc.querySelectorAll('.w');
-  ok('admin merender saran tindakan', /Saran tindakan/.test(out), out.slice(0, 70));
+  doc.getElementById('loginNama').value = 'Guru';
+  doc.getElementById('loginPin').value = '1234';
+  doc.getElementById('formLogin').dispatchEvent(new w.Event('submit', { bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 250));
+  ok('login guru membuka dashboard', !doc.getElementById('viewDash').hidden, 'dashboard masih tersembunyi');
+  doc.getElementById('btnRekap').click();
+  await new Promise(r => setTimeout(r, 250));
+  const out = doc.getElementById('rekapOut').textContent;
+  const warns = doc.querySelectorAll('.warn');
+  ok('halaman guru merender saran tindakan', /Saran tindakan/.test(out), out.slice(0, 70));
   ok('ambang 30% memunculkan materi Mulut saja', warns.length === 2 && /Mulut/.test(warns[0].textContent) && ![...warns].map(w => w.textContent).join(' ').includes('Anus'), [...warns].map(w => w.textContent).join(' | '));
   ok('siswa rata<250 & sesi>=2 disorot, sesi 1 tidak', /Budi/.test(out) && warns[1]?.textContent.includes('Budi'), warns[1]?.textContent);
-  ok('nama berisi HTML di-escape', !doc.querySelector('#o img'), 'ada elemen img');
-  ok('tabel peringkat/kelas/materi/soal ada', /Peringkat siswa/.test(out) && /Per kelas/.test(out) && /Per materi/.test(out) && /Soal tersulit/.test(out));
+  ok('nama berisi HTML di-escape', !doc.querySelector('#rekapOut img'), 'ada elemen img');
+  ok('tabel peringkat/materi/soal ada', /Peringkat siswa/.test(out) && /Per materi/.test(out) && /Soal tersulit/.test(out));
   ok('kartu ringkasan terisi dari data', /Total sesi main/.test(out) && /Sesi terakhir \(WITA\)/.test(out) && /283/.test(out), out.slice(0, 90));
 
-  const rank = () => [...doc.querySelectorAll('#o table')[0].querySelectorAll('tbody tr')].map(r => [...r.cells].map(c => c.textContent.trim()));
+  const rank = () => [...doc.querySelectorAll('#rekapOut table')[0].querySelectorAll('tbody tr')].map(r => [...r.cells].map(c => c.textContent.trim()));
   const r0 = rank();
   ok('peringkat urut skor terbaik (600 → 300 → 150)', r0.length === 3 && r0[0][5] === '600' && r0[1][1] === 'Budi' && r0[2][5] === '150', JSON.stringify(r0.map(r => r[1] + ':' + r[5])));
-  ok('tiga teratas memakai medali', r0[0][0] === '🥇' && r0[2][0] === '🥉', r0.map(r => r[0]).join('|'));
 
-  const f = doc.getElementById('f');
+  const f = doc.getElementById('rekapKelas');
   f.value = 'X-2'; f.dispatchEvent(new w.Event('change'));
   const r1 = rank();
   ok('filter kelas menyaring peringkat', r1.length === 1 && r1[0][2] === 'X-2', JSON.stringify(r1));
@@ -175,7 +193,7 @@ const call = (e, path, init = {}) => worker.fetch(new Request('https://api.test'
   let blob = null;
   w.URL.createObjectURL = b => { blob = b; return 'blob:x'; };
   w.HTMLAnchorElement.prototype.click = function () { };
-  doc.getElementById('csv').click();
+  doc.getElementById('btnCsv').click();
   const txt = blob && blob.text ? await blob.text() : '';
   const baris = (txt.match(/\r\n/g) || []).length;
   ok('CSV: header + 3 baris siswa', /Peringkat","Nama","Kelas/.test(txt) && baris === 3, JSON.stringify(txt.slice(0, 80)));

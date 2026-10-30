@@ -16,19 +16,47 @@ mkdirSync(OUT, { recursive: true });
 const INJECT = 'window.__G=()=>G;';
 const html = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8').replace('</script>', INJECT + '\n</script>');
 const posts = [];
+const STUDENTS = [
+  { id: 1, nama: 'Budi', kelas: 'X-1' },
+  { id: 2, nama: 'Sari', kelas: 'X-2' },
+  { id: 3, nama: 'TabLand', kelas: 'X-3' },
+  { id: 4, nama: 'TabPotret', kelas: 'X-4' }
+];
+const kirimJSON = (res, data) => {
+  res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
+  res.end(JSON.stringify(data));
+};
 
 const server = createServer((req, res) => {
-  if (req.url.startsWith('/api/papan')) {
-    res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
-    return res.end('{"top":[]}');
+  if (req.url === '/manifest.json') {
+    res.writeHead(200, { 'content-type': 'application/manifest+json' });
+    return res.end(readFileSync(join(ROOT, 'manifest.json')));
+  }
+  if (req.url === '/sw.js') {
+    res.writeHead(200, { 'content-type': 'application/javascript' });
+    return res.end(readFileSync(join(ROOT, 'sw.js')));
+  }
+  if (req.url.startsWith('/api/papan')) return kirimJSON(res, { top: [] });
+  if (req.url === '/api/token/validate') return kirimJSON(res, { ok: 1, tenant: 'g1' });
+  if (req.url.startsWith('/api/siswa?')) return kirimJSON(res, { list: STUDENTS });
+  if (req.url.startsWith('/api/soal')) return kirimJSON(res, { list: [] });
+  if (req.url === '/api/siswa/login') {
+    let b = '';
+    req.on('data', c => b += c);
+    req.on('end', () => {
+      let d = {};
+      try { d = JSON.parse(b); } catch (e) {}
+      const s = STUDENTS.find(x => x.id === +d.id) || STUDENTS[0];
+      kirimJSON(res, { ok: 1, siswa: Object.assign({ tenant: 'g1' }, s) });
+    });
+    return;
   }
   if (req.method === 'POST' && req.url === '/api/log') {
     let b = '';
     req.on('data', c => b += c);
     req.on('end', () => {
       posts.push(JSON.parse(b));
-      res.writeHead(200, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
-      res.end('{"ok":1}');
+      kirimJSON(res, { ok: 1 });
     });
     return;
   }
@@ -57,6 +85,21 @@ async function newPage(w = 1280, h = 800) {
   return page;
 }
 
+async function login(page, nama) {
+  await page.fill('#tk', 'ABC123');
+  await page.click('#vtoken');
+  await page.waitForSelector('#studentPick', { state: 'visible' });
+  const nilai = await page.evaluate((n) => {
+    const sel = document.getElementById('st');
+    const opt = [...sel.options].find(x => x.textContent.startsWith(n));
+    return opt ? opt.value : '';
+  }, nama);
+  await page.selectOption('#st', nilai);
+  await page.fill('#sp', '1234');
+  await page.click('#lg');
+  await page.waitForSelector('#s-start.on');
+}
+
 async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
   for (let i = 0; i < 6; i++) {
     await page.waitForSelector('#qbody .opt', { timeout: 12000 });
@@ -76,11 +119,7 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
 // ---------- Desktop ----------
 {
   const page = await newPage(1280, 800);
-  await page.fill('#un', 'Budi');
-  await page.fill('#pw', '1234');
-  await page.fill('#kl', 'X-1');
-  await page.click('#lg');
-  await page.waitForSelector('#s-start.on');
+  await login(page, 'Budi');
   await page.screenshot({ path: join(OUT, '1-desktop-awal.png'), fullPage: true });
 
   const setCols = await page.evaluate(() => getComputedStyle(document.querySelector('.set')).gridTemplateColumns);
@@ -131,9 +170,7 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
 // ---------- HP ----------
 {
   const page = await newPage(390, 844);
-  await page.fill('#un', 'Sari'); await page.fill('#pw', '1234'); await page.fill('#kl', 'X-2');
-  await page.click('#lg');
-  await page.waitForSelector('#s-start.on');
+  await login(page, 'Sari');
   await page.screenshot({ path: join(OUT, '4-hp-awal.png'), fullPage: true });
   const cols = await page.evaluate(() => getComputedStyle(document.querySelector('.set')).gridTemplateColumns);
   ok('HP: pengaturan satu kolom', cols.trim().split(/\s+/).length === 1, cols);
@@ -173,8 +210,7 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
 // ---------- Tablet ----------
 {
   const page = await newPage(1024, 600);
-  await page.fill('#un', 'TabLand'); await page.fill('#pw', '1234'); await page.click('#lg');
-  await page.waitForSelector('#s-start.on');
+  await login(page, 'TabLand');
   await page.click('#foods .food[data-i="0"]');
   await page.click('#go');
   await page.waitForSelector('#qbody .opt', { timeout: 15000 });
@@ -199,8 +235,7 @@ async function playAll(page, { wrongFirst = 0, hintAt = -1 } = {}) {
 }
 {
   const page = await newPage(800, 1280);
-  await page.fill('#un', 'TabPotret'); await page.fill('#pw', '1234'); await page.click('#lg');
-  await page.waitForSelector('#s-start.on');
+  await login(page, 'TabPotret');
   await page.click('#foods .food[data-i="0"]');
   await page.click('#go');
   await page.waitForSelector('#qbody .opt', { timeout: 15000 });

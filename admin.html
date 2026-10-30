@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Guru - Petualangan Makanan</title>
+<style>
+:root{--bg:#faf6f0;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#c9a96e;--pri2:#a8895a;--line:#f0e6d6;--ok:#5b8c5a;--bad:#b5654f;--soft:#fffaf3}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;min-height:100vh;background:linear-gradient(135deg,#fff7f3 0%,#faf6f0 45%,#f3ead9 100%);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:22px 16px 40px}
+header{text-align:center;margin-bottom:18px}
+header h1{margin:0;font-size:1.7rem;color:var(--pri2);letter-spacing:.01em}
+header p{margin:4px 0 0;color:var(--mut);font-size:.9rem}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(201,169,110,.10);margin-bottom:14px}
+.card h2{margin:0 0 4px;font-size:1.05rem}
+.card .sub{margin:0 0 12px;color:var(--mut);font-size:.86rem}
+.auth{max-width:430px;margin:0 auto}
+.tabs{display:flex;gap:8px;margin-bottom:14px}
+.tab{flex:1;padding:10px;border:2px solid var(--line);border-radius:12px;background:var(--soft);color:var(--mut);font:inherit;font-weight:700;cursor:pointer}
+.tab.on{background:var(--pri);border-color:var(--pri);color:#fff}
+label{display:block;font-size:.82rem;color:var(--mut);margin-bottom:10px}
+input,select,textarea{width:100%;margin-top:4px;padding:11px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--pri)}
+textarea{resize:vertical;min-height:70px}
+button{padding:11px 16px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(.98)}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button.ghost{background:var(--soft)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.small{padding:7px 11px;font-size:.82rem}
+.msg{margin:10px 0 0;font-size:.86rem;min-height:1.2em}
+.msg.ok{color:var(--ok)}
+.msg.bad{color:var(--bad)}
+.topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.who b{display:block}
+.who small{color:var(--mut)}
+.status{display:inline-block;margin-top:4px;padding:3px 9px;border-radius:99px;font-size:.76rem;font-weight:700}
+.status.ok{background:#e8f2e6;color:var(--ok)}
+.status.bad{background:#f8e7e2;color:var(--bad)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
+.row>label{flex:1 1 150px;margin:0}
+.row>button{flex:0 0 auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.grid2 .full{grid-column:1/-1}
+.list{margin-top:12px;border-top:1px solid var(--line)}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.item:last-child{border-bottom:0}
+.item small{display:block;color:var(--mut);font-size:.76rem}
+.item .del{border-color:#f0d8d0;color:var(--bad);background:#fff8f5;padding:6px 10px;font-size:.8rem}
+.empty{margin:12px 0 0;color:var(--mut);font-size:.88rem}
+.tokenBox{margin-top:12px;padding:14px;border:2px dashed var(--pri);border-radius:14px;background:var(--soft);text-align:center}
+.tokenCode{font-size:1.7rem;font-weight:800;letter-spacing:.16em;color:var(--pri2);margin:4px 0}
+.hint{color:var(--mut);font-size:.8rem;margin:6px 0 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:10px 0}
+.stat{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-size:1.35rem}
+.stat small{color:var(--mut);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em}
+.warn{background:#fdf3e3;border-left:4px solid var(--pri);border-radius:10px;padding:9px 12px;margin:8px 0;font-size:.88rem}
+.tableWrap{overflow-x:auto;margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:.86rem}
+th,td{padding:8px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--mut);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;background:var(--soft)}
+td.num,th.num{text-align:right}
+footer{text-align:center;color:var(--mut);font-size:.75rem;margin-top:22px}
+footer a{color:var(--pri2)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#4a3f35;color:#fff;padding:11px 18px;border-radius:12px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.ownerBox{max-width:520px}
+.ownerOut{font-family:ui-monospace,Consolas,monospace;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin-top:10px}
+@media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Petualangan Makanan</h1>
+  <p>Panel guru: kelola murid, soal, token akses, dan nilai.</p>
+</header>
+
+<section id="viewAuth" class="card auth">
+  <div class="tabs">
+    <button class="tab on" id="tabLogin" type="button">Masuk</button>
+    <button class="tab" id="tabRegister" type="button">Daftar Baru</button>
+  </div>
+
+  <form id="formLogin">
+    <label>Nama guru<input id="loginNama" autocomplete="username" placeholder="Nama yang dipakai saat daftar"></label>
+    <label>PIN<input id="loginPin" type="password" autocomplete="current-password" placeholder="PIN akun"></label>
+    <button class="pri" type="submit" style="width:100%">Masuk</button>
+  </form>
+
+  <form id="formRegister" hidden>
+    <label>Nama guru<input id="regNama" autocomplete="username" placeholder="Nama guru"></label>
+    <label>PIN<input id="regPin" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter"></label>
+    <label>Kode aktivasi (opsional)<input id="regKode" placeholder="Kosongkan untuk coba gratis 3 hari"></label>
+    <button class="pri" type="submit" style="width:100%">Daftar</button>
+    <p class="hint">Belum punya kode? Kosongkan kolom kode untuk mencoba gratis 3 hari. Kode aktivasi didapat dari pemilik setelah pembayaran.</p>
+  </form>
+
+  <p class="msg" id="authMsg"></p>
+</section>
+
+<section id="viewDash" hidden>
+  <div class="topbar">
+    <div class="who">
+      <b id="dashNama">Guru</b>
+      <small id="dashTenant"></small>
+      <span class="status" id="dashStatus"></span>
+    </div>
+    <button class="ghost small" id="btnLogout" type="button">Keluar</button>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Token akses siswa</h2>
+      <p class="sub">Bagikan token ini ke siswa. Token berlaku sampai besok, satu token untuk semua murid.</p>
+      <button class="pri needActive" id="btnToken" type="button">Buat token hari ini</button>
+      <div id="tokenBox"></div>
+    </section>
+
+    <section class="card">
+      <h2>Langganan</h2>
+      <p class="sub" id="renewHint">Perpanjang masa aktif dengan kode aktivasi.</p>
+      <div class="row">
+        <label>Kode perpanjangan<input id="renewKode" placeholder="PCN-XXXX-XXXX"></label>
+        <button class="pri" id="btnRenew" type="button">Perpanjang</button>
+      </div>
+      <ol class="hint" style="padding-left:18px;margin:10px 0 0">
+        <li>Hubungi pemilik dan lakukan pembayaran.</li>
+        <li>Pemilik mengirim kode aktivasi.</li>
+        <li>Masukkan kode di atas. Masa aktif bertambah 30 hari.</li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Murid <span id="muridCount" class="hint" style="font-weight:400"></span></h2>
+    <p class="sub">Maksimal 50 murid per akun guru.</p>
+    <form id="formMurid" class="row">
+      <label>Nama murid<input id="muridNama" placeholder="Nama lengkap" required></label>
+      <label>Kelas<input id="muridKelas" placeholder="Contoh: 5A"></label>
+      <label>PIN (opsional)<input id="muridPin" inputmode="numeric" maxlength="8" placeholder="4 angka"></label>
+      <button class="pri needActive" type="submit">Tambah</button>
+    </form>
+    <div id="muridList" class="list"></div>
+  </section>
+
+  <section class="card">
+    <h2>Soal tambahan</h2>
+    <p class="sub">Soal ini otomatis masuk ke game sesuai organ dan level. Soal bawaan tetap ada.</p>
+    <form id="formSoal" class="grid2">
+      <label>Organ
+        <select id="soalOrgan">
+          <option>Mulut</option>
+          <option>Kerongkongan</option>
+          <option>Lambung</option>
+          <option>Usus Halus</option>
+          <option>Usus Besar</option>
+          <option>Anus</option>
+        </select>
+      </label>
+      <label>Level
+        <select id="soalLevel">
+          <option value="0">Pemula</option>
+          <option value="1" selected>Jagoan</option>
+          <option value="2">Master</option>
+        </select>
+      </label>
+      <label class="full">Pertanyaan<input id="soalPertanyaan" placeholder="Tulis pertanyaan" required></label>
+      <label class="full">Pilihan jawaban<input id="soalOpsi" placeholder="Pisahkan dengan tanda | contoh: Gigi | Jari | Mata | Telinga" required></label>
+      <label>Nomor jawaban benar<input id="soalJawaban" type="number" min="1" max="6" value="1" required></label>
+      <label>Pembahasan (opsional)<input id="soalPembahasan" placeholder="Penjelasan singkat"></label>
+      <div class="full"><button class="pri needActive" type="submit">Tambah soal</button></div>
+    </form>
+    <div id="soalList" class="list"></div>
+  </section>
+
+  <section class="card">
+    <h2>Rekap nilai</h2>
+    <p class="sub">Nilai semua murid, per kelas, dan per materi.</p>
+    <div class="row">
+      <button class="pri" id="btnRekap" type="button">Muat rekap</button>
+      <button class="ghost" id="btnCsv" type="button" disabled>Unduh CSV</button>
+      <label style="flex:0 1 180px">Kelas<select id="rekapKelas"><option value="">Semua kelas</option></select></label>
+    </div>
+    <div id="rekapOut"></div>
+  </section>
+</section>
+
+<footer>
+  <p>&copy; Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
+  <p><a href="#" id="ownerToggle">Panel pemilik</a></p>
+</footer>
+
+<section id="ownerBox" class="card ownerBox" hidden style="margin:18px auto 0">
+  <h2>Panel pemilik</h2>
+  <p class="sub">Buat kode aktivasi untuk guru setelah pembayaran. Kunci admin tidak disimpan.</p>
+  <label>Kunci admin<input id="ownerKey" type="password" autocomplete="off" placeholder="ADMIN_KEY"></label>
+  <div class="row">
+    <label>Jumlah kode<input id="ownerJumlah" type="number" min="1" max="50" value="10"></label>
+    <label>Masa aktif (hari)<input id="ownerHari" type="number" min="1" max="3650" value="30"></label>
+    <button class="pri" id="ownerGen" type="button">Buat kode</button>
+    <button class="ghost" id="ownerList" type="button">Lihat kode tersisa</button>
+  </div>
+  <div id="ownerOut" class="ownerOut"></div>
+</section>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var API = 'https://pencernaan-api.jejak7-api.workers.dev';
+  var SESSION = 'pcn_guru_session';
+  var state = { token: '', user: null, murid: [], soal: [], rekap: null, filter: '' };
+
+  var ERR = {
+    login: 'Nama atau PIN salah.',
+    nama_dipakai: 'Nama guru sudah dipakai. Pilih nama lain.',
+    kode: 'Kode aktivasi tidak valid atau sudah dipakai.',
+    pin: 'PIN minimal 4 karakter.',
+    data: 'Lengkapi data yang wajib diisi.',
+    nama: 'Nama wajib diisi.',
+    max50: 'Batas 50 murid sudah tercapai.',
+    expired: 'Masa aktif habis. Perpanjang dulu untuk mengubah data.',
+    unauthorized: 'Sesi habis. Silakan masuk lagi.',
+    db: 'Server sedang bermasalah. Coba lagi sebentar.',
+    origin: 'Akses ditolak. Buka halaman dari link resmi.',
+    token: 'Token tidak valid atau kedaluwarsa.',
+    siswa: 'Murid tidak ditemukan.',
+    json: 'Data tidak terbaca.',
+    role: 'Peran tidak dikenal.'
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+  function num(v) { return (+v || 0).toLocaleString('id-ID'); }
+  function tgl(s) {
+    if (!s) return '-';
+    var p = String(s).slice(0, 10).split('-');
+    var b = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    return (+p[2]) + ' ' + (b[+p[1] - 1] || '') + ' ' + p[0];
+  }
+  function toast(text) {
+    var t = $('toast');
+    t.textContent = text;
+    t.classList.add('on');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(function () { t.classList.remove('on'); }, 2600);
+  }
+  function setMsg(id, text, ok) {
+    var e = $(id);
+    e.textContent = text || '';
+    e.className = 'msg ' + (ok ? 'ok' : text ? 'bad' : '');
+  }
+
+  async function api(path, opt) {
+    opt = opt || {};
+    var headers = {};
+    if (opt.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (opt.auth !== false && state.token) headers.Authorization = 'Bearer ' + state.token;
+    var res = await fetch(API + path, {
+      method: opt.method || 'GET',
+      headers: headers,
+      body: opt.body !== undefined ? JSON.stringify(opt.body) : undefined,
+      cache: 'no-store'
+    });
+    var d = {};
+    try { d = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(ERR[d.e] || d.e || ('Gagal (' + res.status + ')'));
+    return d;
+  }
+
+  // ---------- Tampilan auth ----------
+  function showAuth(tab) {
+    $('viewAuth').hidden = false;
+    $('viewDash').hidden = true;
+    $('formLogin').hidden = tab !== 'login';
+    $('formRegister').hidden = tab !== 'register';
+    $('tabLogin').classList.toggle('on', tab === 'login');
+    $('tabRegister').classList.toggle('on', tab === 'register');
+    setMsg('authMsg', '', true);
+  }
+
+  $('tabLogin').onclick = function () { showAuth('login'); };
+  $('tabRegister').onclick = function () { showAuth('register'); };
+
+  function simpanSesi(token, user) {
+    state.token = token;
+    state.user = user;
+    try { localStorage.setItem(SESSION, JSON.stringify({ token: token, user: user })); } catch (e) {}
+  }
+
+  function hapusSesi() {
+    state.token = '';
+    state.user = null;
+    state.rekap = null;
+    state.murid = [];
+    state.soal = [];
+    try { localStorage.removeItem(SESSION); } catch (e) {}
+  }
+
+  // ---------- Masuk dan daftar ----------
+  $('formLogin').onsubmit = async function (e) {
+    e.preventDefault();
+    var nama = $('loginNama').value.trim();
+    var pin = $('loginPin').value;
+    if (!nama || !pin) { setMsg('authMsg', 'Isi nama dan PIN.', false); return; }
+    setMsg('authMsg', 'Memproses...', true);
+    try {
+      var d = await api('/api/auth/login', { method: 'POST', body: { nama: nama, pin: pin }, auth: false });
+      simpanSesi(d.user.token, d.user);
+      $('loginPin').value = '';
+      masukDash(d.user);
+    } catch (err) {
+      setMsg('authMsg', err.message, false);
+    }
+  };
+
+  $('formRegister').onsubmit = async function (e) {
+    e.preventDefault();
+    var nama = $('regNama').value.trim();
+    var pin = $('regPin').value;
+    var kode = $('regKode').value.trim();
+    if (!nama) { setMsg('authMsg', 'Nama wajib diisi.', false); return; }
+    if (pin.length < 4) { setMsg('authMsg', 'PIN minimal 4 karakter.', false); return; }
+    setMsg('authMsg', 'Membuat akun...', true);
+    try {
+      var d = await api('/api/auth/register', {
+        method: 'POST',
+        body: { nama: nama, pin: pin, role: 'guru', kode: kode },
+        auth: false
+      });
+      simpanSesi(d.token, d.user);
+      $('regPin').value = '';
+      $('regKode').value = '';
+      masukDash(d.user);
+      toast(d.user.trial ? 'Akun dibuat. Masa coba gratis 3 hari dimulai.' : 'Akun aktif. Selamat mengajar.');
+    } catch (err) {
+      setMsg('authMsg', err.message, false);
+    }
+  };
+
+  // ---------- Dashboard ----------
+  function masukDash(user) {
+    $('viewAuth').hidden = true;
+    $('viewDash').hidden = false;
+    $('dashNama').textContent = user.nama || 'Guru';
+    $('dashTenant').textContent = 'Kode guru: ' + (user.tenant || '-');
+    renderStatus(user);
+    muatMurid();
+    muatSoal();
+    muatToken();
+  }
+
+  function renderStatus(user) {
+    var aktif = !!user.active;
+    var s = $('dashStatus');
+    s.textContent = aktif ? ('Aktif sampai ' + tgl(user.paid_until)) : 'Masa aktif habis';
+    s.className = 'status ' + (aktif ? 'ok' : 'bad');
+    $('renewHint').textContent = aktif
+      ? 'Masa aktif saat ini sampai ' + tgl(user.paid_until) + '. Perpanjangan akan menambah 30 hari.'
+      : 'Masa aktif sudah habis. Perpanjang untuk membuka kelola murid, soal, dan token.';
+    var need = document.querySelectorAll('.needActive');
+    for (var i = 0; i < need.length; i++) need[i].disabled = !aktif;
+  }
+
+  $('btnLogout').onclick = function () {
+    hapusSesi();
+    $('loginNama').value = '';
+    $('loginPin').value = '';
+    showAuth('login');
+  };
+
+  // ---------- Murid ----------
+  async function muatMurid() {
+    try {
+      var d = await api('/api/murid');
+      state.murid = Array.isArray(d.list) ? d.list : [];
+      renderMurid();
+    } catch (err) {
+      $('muridList').innerHTML = '<p class="empty">' + esc(err.message) + '</p>';
+    }
+  }
+
+  function renderMurid() {
+    $('muridCount').textContent = state.murid.length + '/50 murid';
+    if (!state.murid.length) {
+      $('muridList').innerHTML = '<p class="empty">Belum ada murid. Tambahkan nama murid di atas.</p>';
+      return;
+    }
+    $('muridList').innerHTML = state.murid.map(function (m) {
+      return '<div class="item"><div><b>' + esc(m.nama) + '</b><small>' + esc(m.kelas || 'Tanpa kelas') + '</small></div>' +
+        '<button class="del" type="button" data-id="' + m.id + '">Hapus</button></div>';
+    }).join('');
+    var tombol = $('muridList').querySelectorAll('.del');
+    for (var i = 0; i < tombol.length; i++) {
+      tombol[i].onclick = async function () {
+        if (!confirm('Hapus murid ini?')) return;
+        try {
+          await api('/api/murid?id=' + this.dataset.id, { method: 'DELETE' });
+          toast('Murid dihapus.');
+          muatMurid();
+        } catch (err) { toast(err.message); }
+      };
+    }
+  }
+
+  $('formMurid').onsubmit = async function (e) {
+    e.preventDefault();
+    var nama = $('muridNama').value.trim();
+    if (!nama) { toast('Nama murid wajib diisi.'); return; }
+    try {
+      await api('/api/murid', {
+        method: 'POST',
+        body: { nama: nama, kelas: $('muridKelas').value.trim(), pin: $('muridPin').value.trim() }
+      });
+      $('muridNama').value = '';
+      $('muridKelas').value = '';
+      $('muridPin').value = '';
+      toast('Murid ditambahkan.');
+      muatMurid();
+    } catch (err) { toast(err.message); }
+  };
+
+  // ---------- Soal ----------
+  async function muatSoal() {
+    try {
+      var d = await api('/api/soal');
+      state.soal = Array.isArray(d.list) ? d.list : [];
+      renderSoal();
+    } catch (err) {
+      $('soalList').innerHTML = '<p class="empty">' + esc(err.message) + '</p>';
+    }
+  }
+
+  function renderSoal() {
+    if (!state.soal.length) {
+      $('soalList').innerHTML = '<p class="empty">Belum ada soal tambahan. Soal bawaan game tetap dipakai.</p>';
+      return;
+    }
+    $('soalList').innerHTML = state.soal.map(function (s) {
+      return '<div class="item"><div><b>' + esc(s.organ) + ' - Level ' + esc(s.level) + '</b>' +
+        '<small>' + esc(s.pertanyaan) + '</small></div>' +
+        '<button class="del" type="button" data-id="' + s.id + '">Hapus</button></div>';
+    }).join('');
+    var tombol = $('soalList').querySelectorAll('.del');
+    for (var i = 0; i < tombol.length; i++) {
+      tombol[i].onclick = async function () {
+        if (!confirm('Hapus soal ini?')) return;
+        try {
+          await api('/api/soal?id=' + this.dataset.id, { method: 'DELETE' });
+          toast('Soal dihapus.');
+          muatSoal();
+        } catch (err) { toast(err.message); }
+      };
+    }
+  }
+
+  $('formSoal').onsubmit = async function (e) {
+    e.preventDefault();
+    var opsi = $('soalOpsi').value.split('|').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (opsi.length < 2) { toast('Isi minimal 2 pilihan jawaban, pisahkan dengan tanda |.'); return; }
+    if (opsi.length > 6) { toast('Maksimal 6 pilihan jawaban.'); return; }
+    var jawab = +$('soalJawaban').value;
+    if (!jawab || jawab < 1 || jawab > opsi.length) { toast('Nomor jawaban benar tidak sesuai jumlah pilihan.'); return; }
+    try {
+      await api('/api/soal', {
+        method: 'POST',
+        body: {
+          organ: $('soalOrgan').value,
+          level: +$('soalLevel').value,
+          pertanyaan: $('soalPertanyaan').value.trim(),
+          opsi: opsi,
+          jawaban: jawab - 1,
+          pembahasan: $('soalPembahasan').value.trim()
+        }
+      });
+      $('soalPertanyaan').value = '';
+      $('soalOpsi').value = '';
+      $('soalJawaban').value = '1';
+      $('soalPembahasan').value = '';
+      toast('Soal ditambahkan.');
+      muatSoal();
+    } catch (err) { toast(err.message); }
+  };
+
+  // ---------- Token ----------
+  async function muatToken() {
+    try {
+      var d = await api('/api/token/list');
+      var list = Array.isArray(d.list) ? d.list : [];
+      if (!list.length) {
+        $('tokenBox').innerHTML = '<p class="empty">Belum ada token aktif hari ini.</p>';
+        return;
+      }
+      var t = list[0];
+      $('tokenBox').innerHTML = '<div class="tokenBox"><div class="hint">Token akses siswa</div>' +
+        '<div class="tokenCode">' + esc(t.kode) + '</div>' +
+        '<div class="hint">Berlaku sampai ' + esc(t.expires_at || '-') + '</div>' +
+        '<button class="ghost small" type="button" id="btnCopyToken" style="margin-top:8px">Salin token</button></div>';
+      $('btnCopyToken').onclick = function () { salin(t.kode); };
+    } catch (err) {
+      $('tokenBox').innerHTML = '<p class="empty">' + esc(err.message) + '</p>';
+    }
+  }
+
+  $('btnToken').onclick = async function () {
+    try {
+      var d = await api('/api/token/create', { method: 'POST' });
+      toast('Token siap dibagikan.');
+      muatToken();
+      if (d.kode) salin(d.kode);
+    } catch (err) { toast(err.message); }
+  };
+
+  function salin(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { toast('Disalin: ' + text); }).catch(function () { toast('Token: ' + text); });
+    } else {
+      toast('Token: ' + text);
+    }
+  }
+
+  // ---------- Perpanjangan ----------
+  $('btnRenew').onclick = async function () {
+    var kode = $('renewKode').value.trim();
+    if (!kode) { toast('Masukkan kode perpanjangan.'); return; }
+    try {
+      var d = await api('/api/pay/redeem', { method: 'POST', body: { kode: kode } });
+      state.user.paid_until = d.paid_until;
+      state.user.active = 1;
+      renderStatus(state.user);
+      try {
+        var s = JSON.parse(localStorage.getItem(SESSION) || '{}');
+        s.user = state.user;
+        localStorage.setItem(SESSION, JSON.stringify(s));
+      } catch (e) {}
+      $('renewKode').value = '';
+      toast('Masa aktif ditambah ' + d.hari + ' hari.');
+      muatToken();
+    } catch (err) { toast(err.message); }
+  };
+
+  // ---------- Rekap ----------
+  $('btnRekap').onclick = async function () {
+    $('rekapOut').innerHTML = '<p class="empty">Memuat rekap...</p>';
+    try {
+      state.rekap = await api('/api/rekap');
+      isiKelas();
+      renderRekap();
+      $('btnCsv').disabled = false;
+    } catch (err) {
+      $('rekapOut').innerHTML = '<p class="empty">' + esc(err.message) + '</p>';
+    }
+  };
+
+  function isiKelas() {
+    var set = {};
+    (state.rekap.siswa || []).forEach(function (x) { set[x.kelas || '(tanpa kelas)'] = 1; });
+    var opts = ['<option value="">Semua kelas</option>'];
+    Object.keys(set).sort().forEach(function (k) {
+      opts.push('<option value="' + esc(k) + '">' + esc(k) + '</option>');
+    });
+    $('rekapKelas').innerHTML = opts.join('');
+  }
+
+  function siswaTampil() {
+    var f = $('rekapKelas').value;
+    return (state.rekap.siswa || []).filter(function (x) {
+      return !f || (x.kelas || '(tanpa kelas)') === f;
+    });
+  }
+
+  function renderRekap() {
+    if (!state.rekap) return;
+    var R = (state.rekap.ringkasan && state.rekap.ringkasan[0]) || {};
+    var organ = state.rekap.organ || [];
+    var soal = state.rekap.soal || [];
+    var urut = siswaTampil().slice().sort(function (a, b) {
+      return (b.maks - a.maks) || (b.rata - a.rata) || String(a.nama).localeCompare(String(b.nama));
+    });
+    var h = '';
+
+    h += '<div class="cards">' +
+      '<div class="stat"><b>' + num(R.sesi) + '</b><small>Total sesi main</small></div>' +
+      '<div class="stat"><b>' + num(R.siswa) + '</b><small>Siswa terdata</small></div>' +
+      '<div class="stat"><b>' + num(R.rata) + '</b><small>Rata-rata skor</small></div>' +
+      '<div class="stat"><b style="font-size:.95rem">' + esc(R.terakhir || '-') + '</b><small>Sesi terakhir (WITA)</small></div>' +
+      '</div>';
+
+    var saran = [];
+    organ.filter(function (x) { return +x.pct_gagal >= 30; }).forEach(function (x) {
+      saran.push('<div class="warn">Materi <b>' + esc(x.organ) + '</b>: ' + num(x.pct_gagal) + '% jawaban gagal total (' + num(x.n) + ' jawaban). Ulas ulang di kelas.</div>');
+    });
+    (state.rekap.siswa || []).filter(function (x) { return +x.rata < 250 && +x.sesi >= 2; }).forEach(function (x) {
+      saran.push('<div class="warn"><b>' + esc(x.nama) + '</b> (' + esc(x.kelas || '-') + '): rata-rata ' + num(x.rata) + ' dari ' + num(x.sesi) + ' sesi. Perlu pendampingan.</div>');
+    });
+    h += '<h2 style="margin-top:16px">Saran tindakan</h2>' + (saran.join('') || '<p class="empty">Belum ada yang menonjol. Semua materi dan siswa masih di atas ambang.</p>');
+
+    h += '<h2 style="margin-top:16px">Peringkat siswa</h2>';
+    if (urut.length) {
+      h += '<div class="tableWrap"><table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th class="num">Sesi</th><th class="num">Rata-rata</th><th class="num">Terbaik</th><th>Terakhir main</th></tr></thead><tbody>';
+      urut.forEach(function (x, i) {
+        h += '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nama) + '</td><td>' + esc(x.kelas || '-') + '</td>' +
+          '<td class="num">' + num(x.sesi) + '</td><td class="num">' + num(x.rata) + '</td>' +
+          '<td class="num"><b>' + num(x.maks) + '</b></td><td>' + esc(x.terakhir || '-') + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    } else {
+      h += '<p class="empty">Belum ada siswa di kelas ini.</p>';
+    }
+
+    h += '<h2 style="margin-top:16px">Per materi</h2>';
+    if (organ.length) {
+      h += '<div class="tableWrap"><table><thead><tr><th>Organ</th><th class="num">Jawaban</th><th class="num">Rata salah</th><th class="num">% gagal</th><th class="num">% petunjuk</th></tr></thead><tbody>';
+      organ.forEach(function (x) {
+        h += '<tr><td>' + esc(x.organ) + '</td><td class="num">' + num(x.n) + '</td><td class="num">' + num(x.rata_salah) + '</td>' +
+          '<td class="num">' + num(x.pct_gagal) + '%</td><td class="num">' + num(x.pct_petunjuk) + '%</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    } else {
+      h += '<p class="empty">Belum ada detail jawaban.</p>';
+    }
+
+    h += '<h2 style="margin-top:16px">Soal tersulit</h2>';
+    if (soal.length) {
+      h += '<div class="tableWrap"><table><thead><tr><th>Soal</th><th class="num">Dijawab</th><th class="num">Rata salah</th></tr></thead><tbody>';
+      soal.forEach(function (x) {
+        h += '<tr><td>' + esc(x.soal) + '</td><td class="num">' + num(x.n) + '</td><td class="num">' + num(x.rata_salah) + '</td></tr>';
+      });
+      h += '</tbody></table></div>';
+    } else {
+      h += '<p class="empty">Belum ada soal yang cukup sering dijawab.</p>';
+    }
+
+    $('rekapOut').innerHTML = h;
+  }
+
+  $('rekapKelas').onchange = renderRekap;
+
+  $('btnCsv').onclick = function () {
+    if (!state.rekap) return;
+    var urut = siswaTampil().slice().sort(function (a, b) { return (b.maks - a.maks) || (b.rata - a.rata); });
+    var rows = [['Peringkat', 'Nama', 'Kelas', 'Sesi', 'Rata-rata', 'Skor terbaik', 'Terakhir main']];
+    urut.forEach(function (x, i) { rows.push([i + 1, x.nama, x.kelas || '', x.sesi, x.rata, x.maks, x.terakhir || '']); });
+    var txt = '\uFEFF' + rows.map(function (r) {
+      return r.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(',');
+    }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([txt], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'rekap-pencernaan-' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  // ---------- Panel pemilik ----------
+  $('ownerToggle').onclick = function (e) {
+    e.preventDefault();
+    $('ownerBox').hidden = !$('ownerBox').hidden;
+    if (!$('ownerBox').hidden) $('ownerKey').focus();
+  };
+
+  async function ownerApi(path, opt) {
+    opt = opt || {};
+    var key = $('ownerKey').value.trim();
+    if (!key) throw new Error('Isi kunci admin.');
+    var headers = { Authorization: 'Bearer ' + key };
+    if (opt.body !== undefined) headers['Content-Type'] = 'application/json';
+    var res = await fetch(API + path, {
+      method: opt.method || 'GET',
+      headers: headers,
+      body: opt.body !== undefined ? JSON.stringify(opt.body) : undefined,
+      cache: 'no-store'
+    });
+    var d = {};
+    try { d = await res.json(); } catch (e) {}
+    if (!res.ok) throw new Error(ERR[d.e] || d.e || ('Gagal (' + res.status + ')'));
+    return d;
+  }
+
+  $('ownerGen').onclick = async function () {
+    try {
+      var d = await ownerApi('/api/owner/kode', {
+        method: 'POST',
+        body: { jumlah: +$('ownerJumlah').value || 10, hari: +$('ownerHari').value || 30 }
+      });
+      var list = d.list || [];
+      $('ownerOut').textContent = list.length
+        ? list.map(function (x) { return x.kode + '  (' + x.hari + ' hari)'; }).join('\n')
+        : 'Tidak ada kode yang dibuat.';
+      toast(list.length + ' kode dibuat.');
+    } catch (err) { toast(err.message); }
+  };
+
+  $('ownerList').onclick = async function () {
+    try {
+      var d = await ownerApi('/api/owner/kode');
+      var list = d.list || [];
+      $('ownerOut').textContent = list.length
+        ? list.map(function (x) { return x.kode + '  (' + x.hari + ' hari)'; }).join('\n')
+        : 'Belum ada kode tersisa.';
+    } catch (err) { toast(err.message); }
+  };
+
+  // ---------- Mulai ----------
+  async function boot() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(SESSION) || 'null'); } catch (e) {}
+    if (saved && saved.token) {
+      state.token = saved.token;
+      state.user = saved.user || null;
+      try {
+        var d = await api('/api/auth/me');
+        state.user = d.user;
+        masukDash(d.user);
+        return;
+      } catch (err) {
+        hapusSesi();
+      }
+    }
+    showAuth('login');
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
