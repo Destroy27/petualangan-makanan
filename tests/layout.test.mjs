@@ -14,7 +14,7 @@ const OUT = join(ROOT, 'tests', 'shots');
 mkdirSync(OUT, { recursive: true });
 
 const INJECT = 'window.__G=()=>G;';
-const html = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8').replace('</script>', INJECT + '\n</script>');
+const html = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8').replace(/<\/script>(?![\s\S]*<\/script>)/, INJECT + '\n</script>');
 const posts = [];
 const STUDENTS = [
   { id: 1, nama: 'Budi', kelas: 'X-1' },
@@ -35,6 +35,10 @@ const server = createServer((req, res) => {
   if (req.url === '/sw.js') {
     res.writeHead(200, { 'content-type': 'application/javascript' });
     return res.end(readFileSync(join(ROOT, 'sw.js')));
+  }
+  if (req.url === '/ui.js' || req.url === '/ui.css') {
+    res.writeHead(200, { 'content-type': req.url.endsWith('js') ? 'application/javascript' : 'text/css' });
+    return res.end(readFileSync(join(ROOT, req.url.slice(1))));
   }
   if (req.url.startsWith('/api/papan')) return kirimJSON(res, { top: [] });
   if (req.url === '/api/token/validate') return kirimJSON(res, { ok: 1, tenant: 'g1' });

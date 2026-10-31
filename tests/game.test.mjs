@@ -13,7 +13,7 @@ const { JSDOM } = require('jsdom');
 const raw = readFileSync(join(ROOT, 'game-pencernaan.html'), 'utf8');
 const INJECT = 'window.__t={getG:()=>G,getST:()=>ST,getTEAM:()=>TEAM,getLVL:()=>LVL,getMODEG:()=>MODEG};';
 const html = raw.replace(/const API_URL='[^']*';/, "const API_URL='https://api.test';")
-  .replace('</script>', INJECT + '\n</script>');
+  .replace(/<\/script>(?![\s\S]*<\/script>)/, INJECT + '\n</script>');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (fn, label, ms = 9000) => {

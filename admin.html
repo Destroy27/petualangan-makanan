@@ -4,32 +4,54 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel Guru - Petualangan Makanan</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ui.css">
 <style>
-:root{--bg:#fff5ec;--card:#fff;--ink:#3d2c4a;--mut:#7a6a5a;--pri:#ff7a59;--pri2:#e0563a;--line:#ffe3d3;--ok:#2fbf80;--bad:#ff5470;--soft:#fffaf3}
+:root{--bg:#fdf8f1;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#e8894a;--pri2:#c96a2f;--line:#f6e6d4;--ok:#4fae86;--bad:#d96c6c;--soft:#fff6ea;--sky:#7fb8e8;--mint:#8fd3b6;--lemon:#f6c85f;--lav:#c8b6e2}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
-body{margin:0;min-height:100vh;background:linear-gradient(135deg,#fff7f3 0%,#fff5ec 45%,#f3ead9 100%);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 12% 6%,#ffe6cf,transparent 40%),radial-gradient(circle at 88% 10%,#dff5ea,transparent 38%),radial-gradient(circle at 80% 96%,#e3f0fb,transparent 40%),linear-gradient(135deg,#fff8ef 0%,var(--bg) 48%,#f2fbf5 100%);color:var(--ink);font:15px/1.5 system-ui,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:980px;margin:0 auto;padding:22px 16px 40px}
 header{text-align:center;margin-bottom:18px}
-header h1{margin:0;font-size:1.7rem;color:var(--pri2);letter-spacing:.01em}
+header h1{margin:0;font-size:1.7rem;color:var(--pri2);letter-spacing:.01em;font-family:Fredoka,system-ui,sans-serif}
 header p{margin:4px 0 0;color:var(--mut);font-size:.9rem}
-.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(255,122,89,.14);margin-bottom:14px}
-.card h2{margin:0 0 4px;font-size:1.05rem}
+.card{background:var(--card);border:2px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 8px 24px rgba(232,137,74,.12);margin-bottom:14px;animation:masuk .5s cubic-bezier(.34,1.56,.64,1) both}
+.card h2{margin:0 0 4px;font-size:1.05rem;font-family:Fredoka,system-ui,sans-serif}
+@keyframes masuk{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes boing{0%,100%{scale:1}35%{scale:.94}70%{scale:1.04}}
+.tap{animation:boing .34s ease}
+@keyframes goyang{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(4deg) translateY(-2px)}}
+.bob{display:inline-block;animation:goyang 3.2s ease-in-out infinite}
+.banner{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:var(--card);border:2px solid var(--line);border-left:6px solid var(--pri);border-radius:18px;padding:14px 18px;margin-bottom:14px;box-shadow:0 8px 24px rgba(232,137,74,.12);animation:masuk .5s cubic-bezier(.34,1.56,.64,1) both}
+.banner.ok{border-left-color:var(--ok)}
+.banner.warn{border-left-color:var(--lemon);background:#fff9e8}
+.banner.bad{border-left-color:var(--bad);background:#fff3f2}
+.banner .label{display:block;font-size:.7rem;letter-spacing:.09em;text-transform:uppercase;color:var(--mut)}
+.banner b{display:block;font-family:Fredoka,system-ui,sans-serif;font-size:1.15rem;line-height:1.3}
+.banner .sub{display:block;color:var(--mut);font-size:.85rem}
 .card .sub{margin:0 0 12px;color:var(--mut);font-size:.86rem}
 .auth{max-width:430px;margin:0 auto}
 .tabs{display:flex;gap:8px;margin-bottom:14px}
-.tab{flex:1;padding:10px;border:2px solid var(--line);border-radius:12px;background:var(--soft);color:var(--mut);font:inherit;font-weight:700;cursor:pointer}
-.tab.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.tab{flex:1;padding:10px;border:2px solid var(--line);border-radius:99px;background:var(--soft);color:var(--mut);font:inherit;font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease,color .15s ease}
+.tab:hover:not(:disabled){transform:translateY(-1px);border-color:var(--pri)}
+.tab:active:not(:disabled){transform:translateY(1px)}
+.tab.on{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:0 4px 0 var(--pri2)}
+.tab.on:hover:not(:disabled){transform:none;box-shadow:0 4px 0 var(--pri2)}
 label{display:block;font-size:.82rem;color:var(--mut);margin-bottom:10px}
-input,select,textarea{width:100%;margin-top:4px;padding:11px 12px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--pri)}
+input,select,textarea{width:100%;margin-top:4px;padding:11px 14px;border:2px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);font:inherit;outline:none;transition:border-color .15s ease,box-shadow .15s ease}
+input:focus,select:focus,textarea:focus{border-color:var(--pri);box-shadow:0 0 0 4px rgba(232,137,74,.16)}
 textarea{resize:vertical;min-height:70px}
-button{padding:11px 16px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
-button:hover{filter:brightness(.98)}
-button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
-button.ghost{background:var(--soft)}
-button:disabled{opacity:.45;cursor:not-allowed}
-button.small{padding:7px 11px;font-size:.82rem}
+button{padding:11px 18px;border:2px solid var(--line);border-radius:99px;background:#fff;color:var(--ink);font:inherit;font-weight:700;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease,color .15s ease,opacity .15s ease}
+button:hover:not(:disabled){transform:translateY(-1px)}
+button:active:not(:disabled){transform:translateY(1px)}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff;box-shadow:0 4px 0 var(--pri2)}
+button.pri:hover:not(:disabled){box-shadow:0 5px 0 var(--pri2)}
+button.pri:active:not(:disabled){box-shadow:0 1px 0 var(--pri2)}
+button.ghost{background:var(--card);border-color:var(--pri);color:var(--pri2)}
+button.ghost:hover:not(:disabled){background:var(--soft)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+button.small{padding:7px 14px;font-size:.82rem}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--pri);outline-offset:2px}
 .msg{margin:10px 0 0;font-size:.86rem;min-height:1.2em}
 .msg.ok{color:var(--ok)}
 .msg.bad{color:var(--bad)}
@@ -37,8 +59,8 @@ button.small{padding:7px 11px;font-size:.82rem}
 .who b{display:block}
 .who small{color:var(--mut)}
 .status{display:inline-block;margin-top:4px;padding:3px 9px;border-radius:99px;font-size:.76rem;font-weight:700}
-.status.ok{background:#e8f2e6;color:var(--ok)}
-.status.bad{background:#f8e7e2;color:var(--bad)}
+.status.ok{background:#e7f7ef;color:var(--ok)}
+.status.bad{background:#fdeceb;color:var(--bad)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end}
 .row>label{flex:1 1 150px;margin:0}
@@ -49,16 +71,21 @@ button.small{padding:7px 11px;font-size:.82rem}
 .item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:.9rem}
 .item:last-child{border-bottom:0}
 .item small{display:block;color:var(--mut);font-size:.76rem}
-.item .del{border-color:#f0d8d0;color:var(--bad);background:#fff8f5;padding:6px 10px;font-size:.8rem}
+.item .del{border-color:#f6d3cf;color:var(--bad);background:#fff5f4;padding:6px 10px;font-size:.8rem}
 .empty{margin:12px 0 0;color:var(--mut);font-size:.88rem}
 .tokenBox{margin-top:12px;padding:14px;border:2px dashed var(--pri);border-radius:14px;background:var(--soft);text-align:center}
 .tokenCode{font-size:1.7rem;font-weight:800;letter-spacing:.16em;color:var(--pri2);margin:4px 0}
 .hint{color:var(--mut);font-size:.8rem;margin:6px 0 0}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:10px 0}
-.stat{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:10px 12px;transition:transform .2s ease,box-shadow .2s ease}
+.cards .stat:nth-child(1){background:#fff1df;border-color:#fbe0c2}
+.cards .stat:nth-child(2){background:#eaf8f1;border-color:#d5efe3}
+.cards .stat:nth-child(3){background:#eaf4fd;border-color:#d6e9f8}
+.cards .stat:nth-child(4){background:#fdf7e3;border-color:#f7e9b8}
+.stat:hover{transform:translateY(-2px);box-shadow:0 6px 14px rgba(232,137,74,.15)}
 .stat b{display:block;font-size:1.35rem}
 .stat small{color:var(--mut);font-size:.74rem;text-transform:uppercase;letter-spacing:.04em}
-.warn{background:#fdf3e3;border-left:4px solid var(--pri);border-radius:10px;padding:9px 12px;margin:8px 0;font-size:.88rem}
+.warn{background:#fff6e5;border-left:4px solid var(--pri);border-radius:10px;padding:9px 12px;margin:8px 0;font-size:.88rem}
 .tableWrap{overflow-x:auto;margin-top:10px}
 table{border-collapse:collapse;width:100%;font-size:.86rem}
 th,td{padding:8px 9px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
@@ -66,23 +93,34 @@ th{color:var(--mut);font-size:.72rem;text-transform:uppercase;letter-spacing:.04
 td.num,th.num{text-align:right}
 footer{text-align:center;color:var(--mut);font-size:.75rem;margin-top:22px}
 footer a{color:var(--pri2)}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#3d2c4a;color:#fff;padding:11px 18px;border-radius:12px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
-.toast.on{opacity:1}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,8px) scale(.96);background:#4a3f35;color:#fff;padding:11px 18px;border-radius:99px;font-size:.88rem;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;max-width:90vw;text-align:center}
+.toast.on{opacity:1;transform:translate(-50%,0) scale(1)}
+.sndPill{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:7px 14px;border-radius:99px;border:2px solid var(--line);background:var(--soft);color:var(--mut);font-size:.8rem;font-weight:700;box-shadow:none}
+.sndPill:hover:not(:disabled){border-color:var(--pri);color:var(--pri2);transform:translateY(-1px)}
+.sndPill:active:not(:disabled){transform:translateY(1px)}
 .ownerBox{max-width:520px}
 .ownerOut{font-family:ui-monospace,Consolas,monospace;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin-top:10px}
-@media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}}
+@media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}.banner{padding:12px 14px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="ui.css">
 <link rel="stylesheet" href="admin.css">
+<style>
+/* Penyesuaian palet ceria di atas gaya panel guru */
+header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));box-shadow:0 8px 0 var(--pri2)}
+.toast{background:#4a3f35;border-radius:99px;transform:translate(-50%,8px) scale(.96)}
+.toast.on{transform:translate(-50%,0) scale(1)}
+.sndPill{font-family:Fredoka,system-ui,sans-serif}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
 <script src="ui.js"></script>
 </head>
 <body>
 <div class="wrap">
 <header>
   <div class="mascots" data-mascots></div>
-  <h1>Petualangan Makanan</h1>
+  <h1><span class="bob">🍽️</span> Panel Guru</h1>
   <p>Panel guru: kelola murid, soal, token akses, dan nilai.</p>
+  <button class="sndPill" id="snd" type="button" aria-pressed="true" aria-label="Matikan suara">♪ Suara aktif</button>
 </header>
 
 <section id="viewAuth" class="card auth">
@@ -118,6 +156,15 @@ footer a{color:var(--pri2)}
     <button class="ghost small" id="btnLogout" type="button">Keluar</button>
   </div>
 
+  <section id="subBanner" class="banner">
+    <div>
+      <span class="label">Status langganan</span>
+      <b id="subJudul">Memuat status...</b>
+      <span class="sub" id="subSisa"></span>
+    </div>
+    <button class="pri small" id="subRenew" type="button">Perpanjang</button>
+  </section>
+
   <div class="grid">
     <section class="card">
       <h2>🎟️ Token akses siswa</h2>
@@ -126,7 +173,7 @@ footer a{color:var(--pri2)}
       <div id="tokenBox"></div>
     </section>
 
-    <section class="card">
+    <section class="card" id="subCard">
       <h2>⭐ Langganan</h2>
       <p class="sub" id="renewHint">Perpanjang masa aktif dengan kode aktivasi.</p>
       <div class="row">
@@ -209,6 +256,7 @@ footer a{color:var(--pri2)}
     <label>Masa aktif (hari)<input id="ownerHari" type="number" min="1" max="3650" value="30"></label>
     <button class="pri" id="ownerGen" type="button">Buat kode</button>
     <button class="ghost" id="ownerList" type="button">Lihat kode tersisa</button>
+    <button class="ghost" id="ownerCopy" type="button" disabled>Salin semua</button>
   </div>
   <div id="ownerOut" class="ownerOut"></div>
 </section>
@@ -220,13 +268,41 @@ footer a{color:var(--pri2)}
 (function () {
   'use strict';
 
+  // ---------- Animasi ketuk + tombol suara (memakai UI bersama) ----------
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('button,a.btn,.tab') : null;
+    if (!el || el.disabled) return;
+    el.classList.remove('tap');
+    void el.offsetWidth;
+    el.classList.add('tap');
+    setTimeout(function () { el.classList.remove('tap'); }, 360);
+  }, true);
+  var sndBtn = document.getElementById('snd');
+  function gambarSuara() {
+    if (!sndBtn || !window.UI) return;
+    var mati = UI.muted();
+    sndBtn.textContent = mati ? '♪ Suara mati' : '♪ Suara aktif';
+    sndBtn.setAttribute('aria-pressed', mati ? 'false' : 'true');
+    sndBtn.setAttribute('aria-label', mati ? 'Nyalakan suara' : 'Matikan suara');
+  }
+  if (sndBtn) {
+    sndBtn.addEventListener('click', function () {
+      if (!window.UI) return;
+      var akanMati = !UI.muted();
+      UI.mute(akanMati);
+      gambarSuara();
+      if (!akanMati) UI.sfx.ok();
+    });
+    gambarSuara();
+  }
+
   var API = 'https://pencernaan-api.jejak7-api.workers.dev';
   var SESSION = 'pcn_guru_session';
   var state = { token: '', user: null, murid: [], soal: [], rekap: null, filter: '' };
 
   var ERR = {
     login: 'Nama atau PIN salah.',
-    nama_dipakai: 'Nama guru sudah dipakai. Pilih nama lain.',
+    nama_dipakai: 'Nama guru sudah dipakai. Jika ini akun Anda, masuk lewat tab Masuk.',
     kode: 'Kode aktivasi tidak valid atau sudah dipakai.',
     pin: 'PIN minimal 4 karakter.',
     data: 'Lengkapi data yang wajib diisi.',
@@ -249,11 +325,35 @@ footer a{color:var(--pri2)}
     });
   }
   function num(v) { return (+v || 0).toLocaleString('id-ID'); }
+  var BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   function tgl(s) {
     if (!s) return '-';
     var p = String(s).slice(0, 10).split('-');
-    var b = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    return (+p[2]) + ' ' + (b[+p[1] - 1] || '') + ' ' + p[0];
+    return (+p[2]) + ' ' + (BULAN[+p[1] - 1] || '') + ' ' + p[0];
+  }
+  function waktu(s) {
+    if (!s) return '-';
+    var t = String(s).replace('T', ' ').slice(0, 16);
+    var p = t.split(/[- :]/);
+    if (p.length < 5) return t;
+    return (+p[2]) + ' ' + (BULAN[+p[1] - 1] || '') + ' ' + p[0] + ', ' + p[3] + ':' + p[4];
+  }
+  function sisaHari(paidUntil) {
+    var s = String(paidUntil || '').trim();
+    if (!s) return null;
+    var t = Date.parse(s.replace(' ', 'T') + '+08:00');
+    if (isNaN(t)) return null;
+    return Math.ceil((t - Date.now()) / 86400000);
+  }
+  function busy(btn, teks) {
+    if (!btn) return function () {};
+    var asli = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = teks;
+    return function () {
+      btn.textContent = asli;
+      btn.disabled = btn.classList.contains('needActive') && !(state.user && state.user.active);
+    };
   }
   function toast(text) {
     var t = $('toast');
@@ -323,6 +423,7 @@ footer a{color:var(--pri2)}
     var pin = $('loginPin').value;
     if (!nama || !pin) { setMsg('authMsg', 'Isi nama dan PIN.', false); return; }
     setMsg('authMsg', 'Memproses...', true);
+    var selesai = busy(this.querySelector('button[type="submit"]'), 'Masuk...');
     try {
       var d = await api('/api/auth/login', { method: 'POST', body: { nama: nama, pin: pin }, auth: false });
       simpanSesi(d.user.token, d.user);
@@ -330,6 +431,8 @@ footer a{color:var(--pri2)}
       masukDash(d.user);
     } catch (err) {
       setMsg('authMsg', err.message, false);
+    } finally {
+      selesai();
     }
   };
 
@@ -341,6 +444,7 @@ footer a{color:var(--pri2)}
     if (!nama) { setMsg('authMsg', 'Nama wajib diisi.', false); return; }
     if (pin.length < 4) { setMsg('authMsg', 'PIN minimal 4 karakter.', false); return; }
     setMsg('authMsg', 'Membuat akun...', true);
+    var selesai = busy(this.querySelector('button[type="submit"]'), 'Mendaftar...');
     try {
       var d = await api('/api/auth/register', {
         method: 'POST',
@@ -354,6 +458,8 @@ footer a{color:var(--pri2)}
       toast(d.user.trial ? 'Akun dibuat. Masa coba gratis 3 hari dimulai.' : 'Akun aktif. Selamat mengajar.');
     } catch (err) {
       setMsg('authMsg', err.message, false);
+    } finally {
+      selesai();
     }
   };
 
@@ -367,19 +473,46 @@ footer a{color:var(--pri2)}
     muatMurid();
     muatSoal();
     muatToken();
+    muatRekap();
   }
 
   function renderStatus(user) {
     var aktif = !!user.active;
+    var sisa = sisaHari(user.paid_until);
     var s = $('dashStatus');
     s.textContent = aktif ? ('Aktif sampai ' + tgl(user.paid_until)) : 'Masa aktif habis';
     s.className = 'status ' + (aktif ? 'ok' : 'bad');
+
+    var banner = $('subBanner');
+    var judul = $('subJudul');
+    var ket = $('subSisa');
+    var kelas = 'banner';
+    if (!aktif) {
+      kelas += ' bad';
+      judul.textContent = 'Masa aktif sudah habis';
+      ket.textContent = 'Perpanjang untuk membuka kelola murid, soal, dan token.';
+    } else if (sisa != null && sisa <= 3) {
+      kelas += ' warn';
+      judul.textContent = sisa <= 0 ? 'Kurang dari 1 hari lagi' : 'Sisa ' + sisa + ' hari lagi';
+      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '. Segera perpanjang agar kelas tidak terhenti.';
+    } else {
+      kelas += ' ok';
+      judul.textContent = 'Aktif' + (sisa != null ? ' - sisa ' + sisa + ' hari' : '');
+      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '. Perpanjangan menambah 30 hari.';
+    }
+    banner.className = kelas;
+
     $('renewHint').textContent = aktif
-      ? 'Masa aktif saat ini sampai ' + tgl(user.paid_until) + '. Perpanjangan akan menambah 30 hari.'
+      ? 'Masa aktif saat ini sampai ' + waktu(user.paid_until) + '. Perpanjangan akan menambah 30 hari.'
       : 'Masa aktif sudah habis. Perpanjang untuk membuka kelola murid, soal, dan token.';
     var need = document.querySelectorAll('.needActive');
     for (var i = 0; i < need.length; i++) need[i].disabled = !aktif;
   }
+
+  $('subRenew').onclick = function () {
+    $('subCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(function () { $('renewKode').focus(); }, 350);
+  };
 
   $('btnLogout').onclick = function () {
     hapusSesi();
@@ -413,11 +546,12 @@ footer a{color:var(--pri2)}
     for (var i = 0; i < tombol.length; i++) {
       tombol[i].onclick = async function () {
         if (!confirm('Hapus murid ini?')) return;
+        var selesai = busy(this, '...');
         try {
           await api('/api/murid?id=' + this.dataset.id, { method: 'DELETE' });
           toast('Murid dihapus.');
-          muatMurid();
-        } catch (err) { toast(err.message); }
+          await muatMurid();
+        } catch (err) { toast(err.message); } finally { selesai(); }
       };
     }
   }
@@ -426,6 +560,7 @@ footer a{color:var(--pri2)}
     e.preventDefault();
     var nama = $('muridNama').value.trim();
     if (!nama) { toast('Nama murid wajib diisi.'); return; }
+    var selesai = busy(this.querySelector('button[type="submit"]'), 'Menambah...');
     try {
       await api('/api/murid', {
         method: 'POST',
@@ -435,8 +570,8 @@ footer a{color:var(--pri2)}
       $('muridKelas').value = '';
       $('muridPin').value = '';
       toast('Murid ditambahkan.');
-      muatMurid();
-    } catch (err) { toast(err.message); }
+      await muatMurid();
+    } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
   // ---------- Soal ----------
@@ -464,11 +599,12 @@ footer a{color:var(--pri2)}
     for (var i = 0; i < tombol.length; i++) {
       tombol[i].onclick = async function () {
         if (!confirm('Hapus soal ini?')) return;
+        var selesai = busy(this, '...');
         try {
           await api('/api/soal?id=' + this.dataset.id, { method: 'DELETE' });
           toast('Soal dihapus.');
-          muatSoal();
-        } catch (err) { toast(err.message); }
+          await muatSoal();
+        } catch (err) { toast(err.message); } finally { selesai(); }
       };
     }
   }
@@ -480,6 +616,7 @@ footer a{color:var(--pri2)}
     if (opsi.length > 6) { toast('Maksimal 6 pilihan jawaban.'); return; }
     var jawab = +$('soalJawaban').value;
     if (!jawab || jawab < 1 || jawab > opsi.length) { toast('Nomor jawaban benar tidak sesuai jumlah pilihan.'); return; }
+    var selesai = busy(this.querySelector('button[type="submit"]'), 'Menyimpan...');
     try {
       await api('/api/soal', {
         method: 'POST',
@@ -497,8 +634,8 @@ footer a{color:var(--pri2)}
       $('soalJawaban').value = '1';
       $('soalPembahasan').value = '';
       toast('Soal ditambahkan.');
-      muatSoal();
-    } catch (err) { toast(err.message); }
+      await muatSoal();
+    } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
   // ---------- Token ----------
@@ -513,7 +650,7 @@ footer a{color:var(--pri2)}
       var t = list[0];
       $('tokenBox').innerHTML = '<div class="tokenBox"><div class="hint">Token akses siswa</div>' +
         '<div class="tokenCode">' + esc(t.kode) + '</div>' +
-        '<div class="hint">Berlaku sampai ' + esc(t.expires_at || '-') + '</div>' +
+        '<div class="hint">Berlaku sampai ' + esc(waktu(t.expires_at)) + ' WITA</div>' +
         '<button class="ghost small" type="button" id="btnCopyToken" style="margin-top:8px">Salin token</button></div>';
       $('btnCopyToken').onclick = function () { salin(t.kode); };
     } catch (err) {
@@ -522,26 +659,20 @@ footer a{color:var(--pri2)}
   }
 
   $('btnToken').onclick = async function () {
+    var selesai = busy(this, 'Membuat...');
     try {
       var d = await api('/api/token/create', { method: 'POST' });
       toast('Token siap dibagikan.');
-      muatToken();
+      await muatToken();
       if (d.kode) salin(d.kode);
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message); } finally { selesai(); }
   };
-
-  function salin(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () { toast('Disalin: ' + text); }).catch(function () { toast('Token: ' + text); });
-    } else {
-      toast('Token: ' + text);
-    }
-  }
 
   // ---------- Perpanjangan ----------
   $('btnRenew').onclick = async function () {
     var kode = $('renewKode').value.trim();
     if (!kode) { toast('Masukkan kode perpanjangan.'); return; }
+    var selesai = busy(this, 'Memproses...');
     try {
       var d = await api('/api/pay/redeem', { method: 'POST', body: { kode: kode } });
       state.user.paid_until = d.paid_until;
@@ -554,12 +685,12 @@ footer a{color:var(--pri2)}
       } catch (e) {}
       $('renewKode').value = '';
       toast('Masa aktif ditambah ' + d.hari + ' hari.');
-      muatToken();
-    } catch (err) { toast(err.message); }
+      await muatToken();
+    } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
   // ---------- Rekap ----------
-  $('btnRekap').onclick = async function () {
+  async function muatRekap() {
     $('rekapOut').innerHTML = '<p class="empty">Memuat rekap...</p>';
     try {
       state.rekap = await api('/api/rekap');
@@ -568,7 +699,13 @@ footer a{color:var(--pri2)}
       $('btnCsv').disabled = false;
     } catch (err) {
       $('rekapOut').innerHTML = '<p class="empty">' + esc(err.message) + '</p>';
+      $('btnCsv').disabled = true;
     }
+  }
+
+  $('btnRekap').onclick = async function () {
+    var selesai = busy(this, 'Memuat...');
+    try { await muatRekap(); } finally { selesai(); }
   };
 
   function isiKelas() {
@@ -696,28 +833,53 @@ footer a{color:var(--pri2)}
     return d;
   }
 
+  function salin(text, pesan, gagal) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () {
+        toast(pesan || ('Disalin: ' + text));
+      }).catch(function () {
+        toast(gagal || ('Gagal menyalin otomatis. Salin manual: ' + text));
+      });
+    }
+    toast('Salin manual: ' + text);
+    return Promise.resolve();
+  }
+
+  function tampilKode(list, kosong) {
+    $('ownerOut').textContent = list.length
+      ? list.map(function (x) { return x.kode + '  (' + x.hari + ' hari)'; }).join('\n')
+      : kosong;
+    $('ownerCopy').disabled = !list.length;
+  }
+
   $('ownerGen').onclick = async function () {
+    var selesai = busy(this, 'Membuat...');
     try {
       var d = await ownerApi('/api/owner/kode', {
         method: 'POST',
         body: { jumlah: +$('ownerJumlah').value || 10, hari: +$('ownerHari').value || 30 }
       });
       var list = d.list || [];
-      $('ownerOut').textContent = list.length
-        ? list.map(function (x) { return x.kode + '  (' + x.hari + ' hari)'; }).join('\n')
-        : 'Tidak ada kode yang dibuat.';
+      tampilKode(list, 'Tidak ada kode yang dibuat.');
       toast(list.length + ' kode dibuat.');
-    } catch (err) { toast(err.message); }
+    } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
   $('ownerList').onclick = async function () {
+    var selesai = busy(this, 'Memuat...');
     try {
       var d = await ownerApi('/api/owner/kode');
-      var list = d.list || [];
-      $('ownerOut').textContent = list.length
-        ? list.map(function (x) { return x.kode + '  (' + x.hari + ' hari)'; }).join('\n')
-        : 'Belum ada kode tersisa.';
-    } catch (err) { toast(err.message); }
+      tampilKode(d.list || [], 'Belum ada kode tersisa.');
+    } catch (err) { toast(err.message); } finally { selesai(); }
+  };
+
+  $('ownerCopy').onclick = async function () {
+    var txt = $('ownerOut').textContent.trim();
+    if (!txt) { toast('Belum ada kode untuk disalin.'); return; }
+    var selesai = busy(this, 'Menyalin...');
+    try {
+      await salin(txt, 'Semua kode disalin.', 'Gagal menyalin otomatis. Salin manual dari kotak kode.');
+    } finally { selesai(); }
   };
 
   // ---------- Mulai ----------

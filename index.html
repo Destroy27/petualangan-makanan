@@ -4,27 +4,87 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Petualangan Makanan</title>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
-<style>
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#fff5ec;font-family:Fredoka,system-ui,sans-serif;color:#3d2c4a}
-.card{background:#fff;border-radius:28px;padding:32px;max-width:420px;width:90%;text-align:center;box-shadow:0 12px 30px rgba(255,122,89,.2);border:2px solid #ffe3d3}
-h1{color:#ff7a59;margin:0 0 8px}
-p{opacity:.8;margin:0 0 20px}
-a.btn{display:block;margin:10px 0;padding:14px;border-radius:99px;background:#ff7a59;color:#fff;text-decoration:none;font-weight:700;box-shadow:0 6px 0 #e0563a}
-a.btn.ghost{background:#fff;color:#ff7a59;border:2px solid #ff7a59;box-shadow:none}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="ui.css">
+<style>
+:root{--bg:#fdf8f1;--card:#fff;--ink:#4a3f35;--mut:#7a6a5a;--pri:#e8894a;--pri2:#c96a2f;--line:#f6e6d4;--soft:#fff6ea;--mint:#8fd3b6;--sky:#7fb8e8;--lemon:#f6c85f;--lav:#c8b6e2}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 12% 8%,#ffe6cf,transparent 42%),radial-gradient(circle at 88% 14%,#dff5ea,transparent 38%),radial-gradient(circle at 78% 92%,#e3f0fb,transparent 40%),linear-gradient(135deg,#fff8ef 0%,var(--bg) 50%,#f2fbf5 100%);font-family:Fredoka,system-ui,sans-serif;color:var(--ink);padding:20px;position:relative;overflow-x:hidden}
+.deco{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.deco i{position:absolute;display:block;border-radius:50%;opacity:.6;animation:apung 7s ease-in-out infinite}
+.deco i:nth-child(1){width:130px;height:130px;left:7%;top:14%;background:#ffe0c2}
+.deco i:nth-child(2){width:86px;height:86px;right:10%;top:20%;background:#d8f3e6;animation-delay:1.2s}
+.deco i:nth-child(3){width:104px;height:104px;left:12%;bottom:12%;background:#dceefb;animation-delay:.6s}
+.deco i:nth-child(4){width:70px;height:70px;right:14%;bottom:16%;background:#fff1c9;animation-delay:1.8s}
+.card{position:relative;z-index:1;background:var(--card);border-radius:28px;padding:32px;max-width:420px;width:100%;text-align:center;box-shadow:0 12px 30px rgba(232,137,74,.18);border:2px solid var(--line);overflow:hidden;animation:masuk .6s cubic-bezier(.34,1.56,.64,1) both}
+.card::before{content:'';position:absolute;left:28px;right:28px;top:0;height:6px;border-radius:0 0 99px 99px;background:linear-gradient(90deg,var(--pri),var(--lemon),var(--mint),var(--sky));opacity:.85}
+h1{color:var(--pri);margin:0 0 8px}
+p{opacity:.8;margin:0 0 20px}
+a.btn{display:block;margin:10px 0;padding:14px;border:2px solid var(--pri);border-radius:99px;background:var(--pri);color:#fff;text-decoration:none;font-weight:700;box-shadow:0 5px 0 var(--pri2);transition:transform .15s ease,box-shadow .15s ease,background .15s ease,color .15s ease}
+a.btn:hover{transform:translateY(-1px);box-shadow:0 6px 0 var(--pri2)}
+a.btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--pri2)}
+a.btn.ghost{background:var(--card);color:var(--pri2);border-color:var(--pri);box-shadow:none}
+a.btn.ghost:hover{background:var(--soft);transform:translateY(-1px);box-shadow:none}
+a.btn.ghost:active{transform:translateY(1px);box-shadow:none}
+a:focus-visible,button:focus-visible{outline:3px solid var(--pri);outline-offset:3px}
+.sndPill{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:7px 14px;border:2px solid var(--line);border-radius:99px;background:var(--soft);color:var(--mut);font:700 .8rem Fredoka,system-ui,sans-serif;cursor:pointer;transition:transform .15s ease,border-color .15s ease,color .15s ease,background .15s ease}
+.sndPill:hover{border-color:var(--pri);color:var(--pri2);transform:translateY(-1px)}
+.sndPill:active{transform:translateY(1px)}
+.bob{display:inline-block;animation:goyang 3.2s ease-in-out infinite}
+.tap{animation:boing .34s ease}
+@keyframes masuk{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes boing{0%,100%{scale:1}35%{scale:.94}70%{scale:1.04}}
+@keyframes goyang{0%,100%{transform:rotate(-4deg) translateY(0)}50%{transform:rotate(4deg) translateY(-2px)}}
+@keyframes apung{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@media(max-width:560px){.deco i{opacity:.35}.card{padding:24px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
 <script src="ui.js"></script>
 </head>
 <body>
+<div class="deco" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
 <div class="card">
   <div class="mascots" data-mascots></div>
-  <h1>🍽️ Petualangan Makanan</h1>
+  <h1><span class="bob">🍽️</span> Petualangan Makanan</h1>
   <p>Pilih peranmu untuk memulai.</p>
   <a class="btn" href="game-pencernaan.html">Siswa (Main Game)</a>
   <a class="btn ghost" href="admin.html">Guru (Kelola Kelas)</a>
+  <button class="sndPill" id="snd" type="button" aria-pressed="true" aria-label="Matikan suara">♪ Suara aktif</button>
   <p style="font-size:.8rem;opacity:.75;margin-top:14px">Guru baru bisa mencoba gratis 3 hari.</p>
   <p style="font-size:.72rem;opacity:.7;margin-top:8px">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div>
+<script>
+(function () {
+  'use strict';
+  // Animasi ketuk lucu untuk tombol dan tautan utama.
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('button,a.btn') : null;
+    if (!el || el.disabled) return;
+    el.classList.remove('tap');
+    void el.offsetWidth;
+    el.classList.add('tap');
+    setTimeout(function () { el.classList.remove('tap'); }, 360);
+  }, true);
+
+  var sndBtn = document.getElementById('snd');
+  function gambarSuara() {
+    if (!sndBtn || !window.UI) return;
+    var mati = UI.muted();
+    sndBtn.textContent = mati ? '♪ Suara mati' : '♪ Suara aktif';
+    sndBtn.setAttribute('aria-pressed', mati ? 'false' : 'true');
+    sndBtn.setAttribute('aria-label', mati ? 'Nyalakan suara' : 'Matikan suara');
+  }
+  if (sndBtn) {
+    sndBtn.addEventListener('click', function () {
+      if (!window.UI) return;
+      var akanMati = !UI.muted();
+      UI.mute(akanMati);
+      gambarSuara();
+      if (!akanMati) UI.sfx.ok();
+    });
+    gambarSuara();
+  }
+})();
+</script>
 </body>
 </html>
