@@ -98,6 +98,12 @@ let muridId, soalId, tokenSiswa;
   const masuk = await post('/api/siswa/login', { token: tokenSiswa, id: muridId, pin: '1111' });
   ok('login siswa dengan PIN benar', masuk.status === 200 && masuk.d.siswa?.tenant === guruA.user.tenant, JSON.stringify(masuk.d));
 
+  const regMandiri = await post('/api/siswa/register', { token: tokenSiswa, nama: 'Citra Mandiri', kelas: '5A', pin: '2222' });
+  ok('siswa bisa input nama sendiri lewat token', regMandiri.status === 200 && regMandiri.d.siswa?.nama === 'Citra Mandiri', JSON.stringify(regMandiri.d));
+
+  const bulk = await post('/api/murid', { list: [{ nama: 'Dodi', kelas: '5B' }, { nama: 'Eka', kelas: '5B' }] }, guruA.token);
+  ok('guru bisa tambah banyak murid sekaligus', bulk.status === 200 && bulk.d.added === 2, JSON.stringify(bulk.d));
+
   const salah = await post('/api/siswa/login', { token: tokenSiswa, id: muridId, pin: '9999' });
   ok('login siswa dengan PIN salah ditolak', salah.status === 401 && salah.d.e === 'pin', JSON.stringify(salah.d));
 

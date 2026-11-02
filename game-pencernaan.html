@@ -115,20 +115,24 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 <button class="btn" id="vtoken">Verifikasi Token</button>
 <p id="lm" class="sub" style="margin-top:8px"></p>
 <div id="studentPick" style="display:none;margin-top:10px">
-  <p class="sub" style="font-size:.85rem;margin-bottom:6px">Pilih namamu, lalu masukkan PIN (jika ada):</p>
+  <p class="sub" style="font-size:.85rem;margin-bottom:6px">Pilih namamu (atau pilih <b>+ Isi nama sendiri</b>):</p>
   <select id="st" style="width:100%;padding:12px;border-radius:14px;border:3px solid var(--soft);font:inherit"></select>
-  <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada)" maxlength="8" style="margin-top:8px">
+  <div id="newBox" style="display:none;margin-top:6px">
+    <input id="sn" placeholder="Nama lengkapmu" maxlength="30">
+    <input id="sk" placeholder="Kelas (contoh: 5A)" maxlength="12">
+  </div>
+  <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada / opsional)" maxlength="8" style="margin-top:8px">
   <button class="btn" id="lg" style="margin-top:8px">Masuk &amp; Mulai Bermain</button>
 </div>
-<p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru (untuk guru)</a></p>
 <div id="lb"></div>
+<a class="btn ghost kecil" href="index.html" style="margin-top:12px;text-decoration:none;display:inline-block">🏠 Menu Utama</a>
 <p class="sub" style="margin-top:10px;font-size:.72rem;opacity:.7">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div></section>
 <section id="s-start" class="screen">
  <h1>🍽️ Petualangan Makanan</h1>
  <p class="sub">Pilih makananmu, lalu temani dia berpetualang di sistem pencernaan!</p>
  <div class="foods" id="foods"></div>
- <div class="set"><div class="pick"><b id="who"></b><button class="chip" id="out">Keluar</button></div><div class="pick"><b>Kategori</b><span id="gm"><button class="chip sel" data-v="solo">🧍 Solo</button><button class="chip" data-v="tim">👥 Tim</button></span></div><div id="tm" style="display:none;max-width:420px;margin:0 auto 10px"><input id="tn" placeholder="Nama anggota tim, pisah koma (2-4 orang)"></div><div class="pick"><b>Pilih levelmu</b><span id="lv"><button class="chip" data-v="0">🌱 Pemula</button><button class="chip sel" data-v="1">🚀 Jagoan</button><button class="chip" data-v="2">👑 Master</button></span></div><div class="pick"><b>Cara belajar</b><span id="md"><button class="chip sel" data-v="0">📖 Baca</button><button class="chip" data-v="1">🔊 Dengar</button></span><select id="vsel" style="display:none"></select><button class="chip" id="vtest" style="display:none">🔈 Tes suara</button><small id="vs" style="display:block"></small></div><p class="sub" style="font-size:.85rem">Pemula: soal mudah dan ada kartu materi dulu. Jagoan: soal sedang. Master: soal sulit. Mode Dengar: soal dibacakan suara.</p></div><button class="btn" id="go" disabled>Mulai Petualangan!</button>
+ <div class="set"><div class="pick"><b id="who"></b><button class="chip" id="out">Ganti Akun</button><a class="chip" href="index.html" style="text-decoration:none;display:inline-block">🏠 Menu Utama</a></div><div class="pick"><b>Kategori</b><span id="gm"><button class="chip sel" data-v="solo">🧍 Solo</button><button class="chip" data-v="tim">👥 Tim</button></span></div><div id="tm" style="display:none;max-width:420px;margin:0 auto 10px"><input id="tn" placeholder="Nama anggota tim, pisah koma (2-4 orang)"></div><div class="pick"><b>Pilih levelmu</b><span id="lv"><button class="chip" data-v="0">🌱 Pemula</button><button class="chip sel" data-v="1">🚀 Jagoan</button><button class="chip" data-v="2">👑 Master</button></span></div><div class="pick"><b>Cara belajar</b><span id="md"><button class="chip sel" data-v="0">📖 Baca</button><button class="chip" data-v="1">🔊 Dengar</button></span><select id="vsel" style="display:none"></select><button class="chip" id="vtest" style="display:none">🔈 Tes suara</button><small id="vs" style="display:block"></small></div><p class="sub" style="font-size:.85rem">Pemula: soal mudah dan ada kartu materi dulu. Jagoan: soal sedang. Master: soal sulit. Mode Dengar: soal dibacakan suara.</p></div><button class="btn" id="go" disabled>Mulai Petualangan!</button>
 </section>
 
 <section id="s-game" class="screen">
@@ -231,6 +235,11 @@ function board(){const db=DB.get();const my=ME&&db[ME]?db[ME].name:'';const loc=
  }).catch(()=>{})}
 function showStart(){const m=DB.get()[ME]||{};$('who').textContent='👤 '+(m.name||'Siswa')+' · Rekor solo: '+(+m.best||0)+' · Main: '+(+m.plays||0)+'x ';show('s-start');board()}
 let currentToken='',currentTenant='',currentStudents=[];
+function toggleNewBox(){
+  const nb=$('newBox');if(!nb)return;
+  nb.style.display=$('st').value==='__new__'?'block':'none';
+}
+$('st').onchange=toggleNewBox;
 $('vtoken').onclick=async()=>{
   const kode=$('tk').value.trim().toUpperCase();
   if(!kode){$('lm').textContent='Masukkan token.';return}
@@ -238,6 +247,7 @@ $('vtoken').onclick=async()=>{
   const btn=$('vtoken');
   currentToken='';currentTenant='';currentStudents=[];
   $('studentPick').style.display='none';$('st').innerHTML='';$('sp').value='';
+  if($('sn'))$('sn').value='';if($('sk'))$('sk').value='';
   btn.disabled=true;btn.textContent='Memeriksa...';$('lm').textContent='Memeriksa token...';
   try{
     const r=await fetchTimeout(API_URL+'/api/token/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})},10000);
@@ -247,12 +257,14 @@ $('vtoken').onclick=async()=>{
     const sr=await fetchTimeout(API_URL+'/api/siswa?token='+encodeURIComponent(kode),{},10000);
     const sd=await sr.json();
     const list=Array.isArray(sd.list)?sd.list:[];
-    if(!list.length){$('lm').textContent='Belum ada siswa untuk token ini. Minta guru menambahkan.';currentToken='';currentTenant='';return}
     currentStudents=list;
-    const sel=$('st');sel.innerHTML=list.map(s=>'<option value="'+s.id+'">'+esc(s.nama)+' ('+esc(s.kelas||'-')+')'+'</option>').join('');
+    const sel=$('st');
+    sel.innerHTML=list.map(s=>'<option value="'+s.id+'">'+esc(s.nama)+' ('+esc(s.kelas||'-')+')'+'</option>').join('')+'<option value="__new__">+ Isi nama sendiri (murid baru)</option>';
+    if(!list.length)sel.value='__new__';
+    toggleNewBox();
     $('studentPick').style.display='block';
     const exp=d.expires_at?String(d.expires_at).slice(0,16):'';
-    $('lm').textContent='Token valid'+(exp?' sampai '+exp:'')+'. Pilih namamu lalu masuk.';
+    $('lm').textContent='Token valid'+(exp?' sampai '+exp:'')+(list.length?'. Pilih namamu lalu masuk.':'. Isi namamu lalu masuk.');
     SFX.ok();
   }catch(e){
     currentToken='';currentTenant='';currentStudents=[];
@@ -261,12 +273,34 @@ $('vtoken').onclick=async()=>{
   }finally{btn.disabled=false;btn.textContent='Verifikasi Token'}
 };
 $('lg').onclick=async()=>{
-  const sel=$('st');const opt=sel.options[sel.selectedIndex];
-  const id=opt?+opt.value:0;
+  const sel=$('st');const val=sel.value;
   const pin=$('sp').value.trim();
+  const btn=$('lg');
+  if(val==='__new__'){
+    const nama=($('sn')?.value||'').trim();
+    const kelas=($('sk')?.value||'').trim();
+    if(!nama){$('lm').textContent='Isi nama lengkapmu.';return}
+    btn.disabled=true;btn.textContent='Masuk...';$('lm').textContent='Menyimpan data siswa...';
+    try{
+      const r=await fetchTimeout(API_URL+'/api/siswa/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:currentToken,nama,kelas,pin})},10000);
+      const d=await r.json();
+      if(!r.ok){$('lm').textContent=d.e==='pin'?'PIN salah.':d.e==='max50'?'Kuota 50 siswa di kelas ini sudah penuh.':'Gagal masuk. Coba lagi.';SFX.bad();return}
+      const k='s'+d.siswa.id;
+      const u=DB.get();
+      u[k]={name:d.siswa.nama, pin:hs((pin||'0000')+k), kelas:d.siswa.kelas||'', tenant:d.siswa.tenant||currentTenant, token:currentToken, best:u[k]?.best||0, plays:u[k]?.plays||0, team:u[k]?.team||0, hist:u[k]?.hist||[]};
+      DB.set(u);ME=k;$('lm').textContent='';$('sp').value='';
+      await loadCustomQuestions(currentToken);
+      SFX.ok();showStart();
+    }catch(e){
+      $('lm').textContent=e&&e.name==='AbortError'?'Server lama merespons. Coba lagi.':'Gagal menghubungi server.';
+      SFX.bad();
+    }finally{btn.disabled=false;btn.textContent='Masuk & Mulai Bermain'}
+    return;
+  }
+  const id=+val||0;
   const student=currentStudents.find(s=>+s.id===id);
   if(!student){$('lm').textContent='Pilih siswa.';return}
-  const btn=$('lg');btn.disabled=true;btn.textContent='Masuk...';$('lm').textContent='Memeriksa PIN...';
+  btn.disabled=true;btn.textContent='Masuk...';$('lm').textContent='Memeriksa PIN...';
   try{
     const r=await fetchTimeout(API_URL+'/api/siswa/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:currentToken,id,pin})},10000);
     const d=await r.json();
@@ -280,7 +314,7 @@ $('lg').onclick=async()=>{
   }catch(e){
     $('lm').textContent=e&&e.name==='AbortError'?'Server lama merespons. Coba lagi.':'Gagal menghubungi server.';
     SFX.bad();
-  }finally{btn.disabled=false;btn.textContent='Masuk'}
+  }finally{btn.disabled=false;btn.textContent='Masuk & Mulai Bermain'}
 };
 const ST_BASE=JSON.parse(JSON.stringify(ST));
 const X_BASE=JSON.parse(JSON.stringify(X));
@@ -323,7 +357,7 @@ $('out').onclick=()=>{resetLogin();board();show('s-login')};
 function save(){const u=DB.get(),m=u[ME];if(!m)return;m.plays++;if(TEAM.length)m.team++;else m.best=Math.max(m.best,G.score);m.hist=[{t:new Date().toLocaleDateString('id-ID'),m:TEAM.length?'Tim '+TEAM.join('/'):'Solo',s:G.score,f:G.f.n}].concat(m.hist||[]).slice(0,5);DB.set(u)}
 // ---------- Suara Indonesia ----------
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=()=>{pickVoice();vstat()}}
-vstat();board();if(API_URL){const g=$('guruLink');if(g)g.href=location.hostname.endsWith('github.io')?new URL('admin.html',location.href).href:API_URL+'/admin'}else{const g=$('guruLink');if(g)g.style.display='none'}
+vstat();board();
 function cam(s,x,y){const c=Math.min(0,Math.max(100-100*s,50-s*x)),d=Math.min(0,Math.max(100-100*s,50-s*y));$('cam').style.transform=`translate(${c}%,${d}%) scale(${s})`}
 function speak(t,f){try{if(mute||!('speechSynthesis' in window)||(MODE==0&&!f))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='id-ID';if(VOI)u.voice=VOI;u.rate=.95;u.pitch=1.1;speechSynthesis.speak(u)}catch(e){}}
 function vlist(){try{return speechSynthesis.getVoices().filter(v=>/^id([-_]|$)/i.test(v.lang)||/indonesia/i.test(v.name))}catch(e){return[]}}
@@ -394,7 +428,7 @@ $('panel').onclick=e=>{
 function finish(){clearTimer();SFX.win();save();const data=dataLog(G);const max=Math.round(ST.length*100*levelFactor()),st=G.score>=max*.8?3:G.score>=max*.5?2:1;
  $('end').innerHTML=`${face(G.f)}<h1>Petualangan Selesai!</h1><div>${'⭐'.repeat(st)}${'☆'.repeat(3-st)}</div><div class="big">${G.score}</div><p>dari ${max} poin</p><p>🍽️ ${FACT[G.f.n]}</p>${TEAM.length?'<h2>👥 Skor anggota tim</h2>'+TEAM.map((n,i)=>'<div class="row"><span>'+esc(n)+'</span><b>'+G.ps[i]+'</b></div>').join(''):''}`+
   ST.map((s,i)=>`<div class="row"><span>${s.k}</span><b>${G.res[i]>0?'✅ +'+G.res[i]:'❌ 0'}</b></div>`).join('')+
-  `<p id="sync" class="sync">Mengirim nilai ke guru...</p><button class="btn ghost" id="dl" style="margin-top:10px">⬇ Unduh Hasil</button><button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button>`;
+  `<p id="sync" class="sync">Mengirim nilai ke guru...</p><button class="btn ghost" id="dl" style="margin-top:10px">⬇ Unduh Hasil</button><button class="btn" id="again" style="margin-top:14px">Main Lagi 🔁</button><a class="btn ghost kecil" href="index.html" style="margin-top:10px;text-decoration:none;display:inline-block">🏠 Menu Utama</a>`;
  show('s-end');
  kirimNilai(G,data);
  $('dl').onclick=()=>{const m=DB.get()[ME]||{};const rows=['Petualangan Makanan - Hasil','Nama: '+(m.name||''),'Kelas: '+(m.kelas||''),'Makanan: '+G.f.n,'Level: '+LVL,'Skor: '+G.score,''].concat(ST.map((s,i)=>s.k+': '+(G.res[i]>0?'+ '+G.res[i]:'0')));const blob=new Blob([rows.join('\n')],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='hasil-petualangan.txt';a.click()};

@@ -126,7 +126,10 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
   <div class="mascots" data-mascots></div>
   <h1><span class="bob">🍽️</span> Panel Guru</h1>
   <p>Panel guru: kelola murid, soal, token akses, dan nilai. Semua langkah dijelaskan di bawah.</p>
-  <button class="sndPill" id="snd" type="button" aria-pressed="true" aria-label="Matikan suara">♪ Suara aktif</button>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+    <a class="sndPill" href="index.html" style="text-decoration:none;margin-top:0">🏠 Menu Utama</a>
+    <button class="sndPill" id="snd" type="button" aria-pressed="true" aria-label="Matikan suara" style="margin-top:0">♪ Suara aktif</button>
+  </div>
 </header>
 
 <section id="viewAuth" class="card auth">
@@ -150,7 +153,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     <div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.82rem;color:var(--mut)">
       <b style="color:var(--ink)">Cara mulai:</b><br>
       1. Isi nama dan PIN, lalu klik <b>Buat Akun Guru</b>.<br>
-      2. Setelah masuk dashboard, pilih paket pembayaran (Rp 10.000/hari).<br>
+      2. Setelah masuk dashboard, pilih paket pembayaran (Rp 10.000 / 3 hari).<br>
       3. Bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
       4. Akun otomatis aktif, lalu buat token untuk siswa.
     </div>
@@ -172,8 +175,8 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
   <div id="panduanBox" class="card" style="background:var(--soft);border:2px dashed var(--pri)">
     <h2>📋 Panduan Langkah demi Langkah</h2>
     <ol style="padding-left:18px;margin:8px 0 0;font-size:.88rem;color:var(--ink);line-height:1.7">
-      <li><b>Aktifkan kelas:</b> Pilih paket pembayaran di kartu Langganan (mulai Rp 10.000/hari) atau masukkan kode aktivasi.</li>
-      <li><b>Tambah murid:</b> Isi nama dan kelas murid di kartu Daftar Murid.</li>
+      <li><b>Aktifkan kelas:</b> Pilih paket pembayaran di kartu Langganan (mulai Rp 10.000 / 3 hari) atau masukkan kode aktivasi.</li>
+      <li><b>Data murid:</b> Tambahkan satu-satu, tempel banyak sekaligus, atau biarkan siswa mengisi namanya sendiri di game.</li>
       <li><b>Buat token:</b> Klik "Buat token hari ini" di kartu Token Akses Siswa.</li>
       <li><b>Bagikan token:</b> Tulis kode token 6 karakter di papan tulis, siswa masukkan di game.</li>
       <li><b>Lihat nilai:</b> Klik "Muat rekap" di kartu Rekap Nilai untuk melihat hasil siswa.</li>
@@ -203,13 +206,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
       <p class="sub" id="renewHint">Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.</p>
       <div style="margin:10px 0 6px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.84rem;color:var(--mut)">
         <b style="color:var(--ink)">Cara mengaktifkan:</b><br>
-        1. Pilih salah satu paket di bawah (mulai Rp 10.000/hari).<br>
+        1. Pilih salah satu paket di bawah (mulai Rp 10.000 / 3 hari).<br>
         2. Klik tombol paket, lalu bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
         3. Setelah bayar, akun otomatis aktif dan Anda bisa membuat token untuk siswa.
       </div>
       <div class="pkgGrid">
         <button class="pkg" type="button" data-paket="harian">
-          <b>Harian</b><span>Rp 10.000</span><small>Aktif 1 hari</small>
+          <b>Paket 3 Hari</b><span>Rp 10.000</span><small>Aktif 3 hari</small>
         </button>
         <button class="pkg" type="button" data-paket="mingguan">
           <b>Mingguan</b><span>Rp 20.000</span><small>Aktif 7 hari</small>
@@ -231,13 +234,26 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <section class="card">
     <h2>🧒 Murid <span id="muridCount" class="hint" style="font-weight:400"></span></h2>
-    <p class="sub">Tambahkan nama murid satu per satu. Maksimal 50 murid per akun guru.</p>
+    <p class="sub">Bisa ditambah satu per satu, ditempel banyak sekaligus, atau diisi langsung oleh siswa saat masuk game (maksimal 50 murid).</p>
     <form id="formMurid" class="row">
       <label>Nama murid<input id="muridNama" placeholder="Nama lengkap" required></label>
       <label>Kelas<input id="muridKelas" placeholder="Contoh: 5A"></label>
       <label>PIN (opsional)<input id="muridPin" inputmode="numeric" maxlength="8" placeholder="4 angka"></label>
       <button class="pri needActive" type="submit">Tambah</button>
     </form>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--pri2);font-size:.88rem">+ Tambah Banyak Murid Sekaligus (Copy-Paste Daftar Absen)</summary>
+      <div style="margin-top:8px;padding:12px;border-radius:14px;background:var(--soft);border:1px solid var(--line)">
+        <label>Daftar nama murid (1 baris 1 nama, atau pisahkan dengan koma)
+          <textarea id="bulkMurid" rows="4" placeholder="Contoh:&#10;Andi Pratama&#10;Siti Aminah, 5A&#10;Made Wirawan, 5B, 1234"></textarea>
+        </label>
+        <div class="row" style="margin-top:8px">
+          <label>Kelas default (jika di baris tidak ditulis)<input id="bulkKelas" placeholder="Contoh: 5A"></label>
+          <button class="pri needActive" id="btnBulkMurid" type="button">Simpan Semua</button>
+        </div>
+        <p class="hint">Format per baris: <b>Nama</b> atau <b>Nama, Kelas</b> atau <b>Nama, Kelas, PIN</b>.</p>
+      </div>
+    </details>
     <div id="muridList" class="list"></div>
   </section>
 
@@ -284,8 +300,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 </section>
 
 <footer>
-  <p>&copy; Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
-  <p><a href="#" id="ownerToggle">Panel pemilik</a></p>
+  <p id="copySecret" style="user-select:none">&copy; Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </footer>
 
 <section id="ownerBox" class="card ownerBox" hidden style="margin:18px auto 0">
@@ -540,7 +555,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     if (!aktif) {
       kelas += ' bad';
       judul.textContent = user.paid_until ? 'Masa aktif sudah habis' : 'Kelas belum aktif';
-      ket.textContent = 'Pilih paket pembayaran di bawah (mulai Rp 10.000/hari) untuk membuka kelola murid, soal, dan token.';
+      ket.textContent = 'Pilih paket pembayaran di bawah (mulai Rp 10.000 / 3 hari) untuk membuka kelola murid, soal, dan token.';
     } else if (sisa != null && sisa <= 3) {
       kelas += ' warn';
       judul.textContent = sisa <= 0 ? 'Kurang dari 1 hari lagi' : 'Sisa ' + sisa + ' hari lagi';
@@ -621,6 +636,29 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
       $('muridKelas').value = '';
       $('muridPin').value = '';
       toast('Murid ditambahkan.');
+      await muatMurid();
+    } catch (err) { toast(err.message); } finally { selesai(); }
+  };
+
+  $('btnBulkMurid').onclick = async function () {
+    var raw = $('bulkMurid').value || '';
+    var defKelas = $('bulkKelas').value.trim();
+    var baris = raw.split(/\r?\n|;/).map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!baris.length) { toast('Tulis atau tempel daftar nama murid terlebih dahulu.'); return; }
+    var list = [];
+    for (var i = 0; i < baris.length; i++) {
+      var p = baris[i].split(',').map(function (x) { return x.trim(); });
+      if (p[0]) list.push({ nama: p[0], kelas: p[1] || defKelas, pin: p[2] || '' });
+    }
+    if (!list.length) { toast('Tidak ada nama murid yang valid.'); return; }
+    var selesai = busy(this, 'Menyimpan...');
+    try {
+      var d = await api('/api/murid', {
+        method: 'POST',
+        body: { list: list, kelas: defKelas }
+      });
+      $('bulkMurid').value = '';
+      toast((d.added || list.length) + ' murid berhasil ditambahkan.');
       await muatMurid();
     } catch (err) { toast(err.message); } finally { selesai(); }
   };
@@ -938,12 +976,31 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     a.remove();
   };
 
-  // ---------- Panel pemilik ----------
-  $('ownerToggle').onclick = function (e) {
-    e.preventDefault();
-    $('ownerBox').hidden = !$('ownerBox').hidden;
-    if (!$('ownerBox').hidden) $('ownerKey').focus();
-  };
+  // ---------- Panel pemilik (tersembunyi: #owner atau ketuk copyright 5x) ----------
+  function bukaOwner() {
+    $('ownerBox').hidden = false;
+    $('ownerKey').focus();
+  }
+  if (location.hash === '#owner' || location.search.indexOf('owner=1') !== -1) {
+    bukaOwner();
+  }
+  window.addEventListener('hashchange', function () {
+    if (location.hash === '#owner') bukaOwner();
+  });
+  var ketukRahasia = 0, timerRahasia = null;
+  if ($('copySecret')) {
+    $('copySecret').onclick = function () {
+      ketukRahasia++;
+      clearTimeout(timerRahasia);
+      if (ketukRahasia >= 5) {
+        ketukRahasia = 0;
+        $('ownerBox').hidden = !$('ownerBox').hidden;
+        if (!$('ownerBox').hidden) $('ownerKey').focus();
+      } else {
+        timerRahasia = setTimeout(function () { ketukRahasia = 0; }, 1600);
+      }
+    };
+  }
 
   async function ownerApi(path, opt) {
     opt = opt || {};

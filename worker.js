@@ -9,7 +9,7 @@ const TRIAL_DAYS = 0;      // tanpa masa coba gratis otomatis; aktif setelah bay
 const DEFAULT_DAYS = 30;   // masa aktif per kode aktivasi
 const ADMIN_URL = 'https://destroy27.github.io/petualangan-makanan/admin.html';
 const PAKET_BAYAR = {
-  harian:   { hari: 1,  harga: 10000, label: 'Paket Harian (1 Hari)' },
+  harian:   { hari: 3,  harga: 10000, label: 'Paket 3 Hari' },
   mingguan: { hari: 7,  harga: 20000, label: 'Paket Mingguan (7 Hari)' },
   bulanan:  { hari: 30, harga: 35000, label: 'Paket Bulanan (30 Hari)' }
 };
@@ -269,13 +269,36 @@ export default {
       if (req.method === 'POST') {
         if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
         let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
-        const nama = cut(d.nama, 30).trim();
-        if (!nama) return J({ e: 'nama' }, 400);
         try {
           const c = await (tenant
             ? env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?').bind(tenant)
             : env.DB.prepare('SELECT COUNT(*) n FROM murid')).first();
-          if ((c?.n || 0) >= 50) return J({ e: 'max50' }, 403);
+          const cur = c?.n || 0;
+          if (cur >= 50) return J({ e: 'max50' }, 403);
+
+          if (Array.isArray(d.list)) {
+            const sisa = 50 - cur;
+            const defKelas = cut(d.kelas, 12).trim();
+            const defPin = cut(d.pin, 8).trim();
+            const items = d.list.map(x => {
+              if (typeof x === 'string') return { nama: cut(x, 30).trim(), kelas: defKelas, pin: defPin };
+              return {
+                nama: cut(x?.nama, 30).trim(),
+                kelas: cut(x?.kelas || defKelas, 12).trim(),
+                pin: cut(x?.pin || defPin, 8).trim()
+              };
+            }).filter(x => x.nama).slice(0, sisa);
+            if (!items.length) return J({ e: 'nama' }, 400);
+            const st = items.map(x =>
+              env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
+                .bind(tenant, x.nama, x.kelas, x.pin)
+            );
+            await env.DB.batch(st);
+            return J({ ok: 1, added: items.length });
+          }
+
+          const nama = cut(d.nama, 30).trim();
+          if (!nama) return J({ e: 'nama' }, 400);
           const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
             .bind(tenant, nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
@@ -475,6 +498,31 @@ export default {
         if (!r) return J({ e: 'siswa' }, 404);
         if (r.pin && String(r.pin) !== pin) return J({ e: 'pin' }, 401);
         return J({ ok: 1, siswa: { id: r.id, nama: r.nama, kelas: r.kelas, tenant } });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
+    }
+
+    if (u.pathname === '/api/siswa/register' && req.method === 'POST') {
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kode = cut(d.token, 40).trim().toUpperCase();
+      const nama = cut(d.nama, 30).trim();
+      const kelas = cut(d.kelas, 12).trim();
+      const pin = cut(d.pin, 8).trim();
+      if (!kode || !nama) return J({ e: 'data' }, 400);
+      try {
+        const tenant = await tokenTenant(kode);
+        if (!tenant) return J({ e: 'token' }, 404);
+        const ada = await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid WHERE tenant=? AND lower(nama)=lower(?)').bind(tenant, nama).first();
+        if (ada) {
+          if (ada.pin && String(ada.pin) !== pin) return J({ e: 'pin' }, 401);
+          return J({ ok: 1, siswa: { id: ada.id, nama: ada.nama, kelas: ada.kelas, tenant } });
+        }
+        const c = await env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?').bind(tenant).first();
+        if ((c?.n || 0) >= 50) return J({ e: 'max50' }, 403);
+        const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
+          .bind(tenant, nama, kelas, pin).run();
+        return J({ ok: 1, siswa: { id: r.meta.last_row_id, nama, kelas, tenant } });
       } catch (e) {
         return J({ e: 'db' }, 500);
       }
