@@ -5,13 +5,24 @@
 const AMBANG_GAGAL = 30;   // % jawaban 0 poin per organ, materi perlu diulas
 const AMBANG_RATA = 250;   // rata-rata skor per siswa di bawah ini perlu pendampingan
 const MIN_SESI = 2;        // minimal sesi sebelum siswa disorot
-const TRIAL_DAYS = 3;      // masa coba gratis untuk guru baru
+const TRIAL_DAYS = 0;      // tanpa masa coba gratis otomatis; aktif setelah bayar/kode aktivasi
 const DEFAULT_DAYS = 30;   // masa aktif per kode aktivasi
 const ADMIN_URL = 'https://destroy27.github.io/petualangan-makanan/admin.html';
+const PAKET_BAYAR = {
+  harian:   { hari: 1,  harga: 10000, label: 'Paket Harian (1 Hari)' },
+  mingguan: { hari: 7,  harga: 20000, label: 'Paket Mingguan (7 Hari)' },
+  bulanan:  { hari: 30, harga: 35000, label: 'Paket Bulanan (30 Hari)' }
+};
 
 async function sha256(s) {
   const b = new TextEncoder().encode(s);
   const h = await crypto.subtle.digest('SHA-256', b);
+  return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+async function sha512(s) {
+  const b = new TextEncoder().encode(s);
+  const h = await crypto.subtle.digest('SHA-512', b);
   return [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join('');
 }
 
@@ -300,22 +311,22 @@ export default {
         const cek = await env.DB.prepare("SELECT id FROM users WHERE role='guru' AND lower(nama)=lower(?)").bind(nama).first();
         if (cek) return J({ e: 'nama_dipakai' }, 409);
 
-        let hari = TRIAL_DAYS;
-        let trial = 1;
+        let hari = 0;
+        let trial = 0;
         let kode = '';
         if (d.kode) {
           kode = cut(d.kode, 40).trim().toUpperCase();
           const k = await env.DB.prepare('SELECT kode,hari FROM kode_bayar WHERE kode=? AND dipakai_oleh IS NULL').bind(kode).first();
           if (!k) return J({ e: 'kode' }, 400);
           hari = Math.max(1, Math.min(3650, +k.hari || DEFAULT_DAYS));
-          trial = 0;
         }
 
         const token = Math.random().toString(36).slice(2) + Date.now().toString(36);
         const hash = await sha256(pin);
-        const until = `datetime('now','+8 hours','+${hari} day')`;
+        const paid = hari > 0 ? 1 : 0;
+        const until = hari > 0 ? `datetime('now','+8 hours','+${hari} day')` : 'NULL';
         const r = await env.DB.prepare(
-          `INSERT INTO users(role,tenant,nama,pin_hash,token,paid,paid_until) VALUES('guru','',?,?,?,1,${until})`
+          `INSERT INTO users(role,tenant,nama,pin_hash,token,paid,paid_until) VALUES('guru','',?,?,?,${paid},${until})`
         ).bind(nama, hash, token).run();
         const id = r.meta.last_row_id;
         const tenant = 'g' + id;
@@ -334,7 +345,7 @@ export default {
         const row = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(id).first();
         return J({
           ok: 1, token,
-          user: { id, role: 'guru', tenant, nama, active: 1, paid_until: row?.paid_until || '', trial }
+          user: { id, role: 'guru', tenant, nama, active: paid, paid_until: row?.paid_until || '', trial }
         });
       } catch (e) {
         return J({ e: 'db' }, 500);
@@ -504,6 +515,148 @@ export default {
         ).bind(ctx.user.id).run();
         const row = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(ctx.user.id).first();
         return J({ ok: 1, paid_until: row?.paid_until || '', hari });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
+    }
+
+    // ---------- Pembayaran Otomatis Midtrans ----------
+    const midBase = (env) => env.MIDTRANS_IS_PROD === '1'
+      ? 'https://app.midtrans.com'
+      : 'https://app.sandbox.midtrans.com';
+    const midApi = (env) => env.MIDTRANS_IS_PROD === '1'
+      ? 'https://api.midtrans.com'
+      : 'https://api.sandbox.midtrans.com';
+    const midAuth = (env) => 'Basic ' + btoa(String(env.MIDTRANS_SERVER_KEY || '') + ':');
+
+    async function aktifkanPesanan(orderId) {
+      const p = await env.DB.prepare('SELECT order_id,user_id,hari,status FROM pesanan WHERE order_id=?').bind(orderId).first();
+      if (!p) return null;
+      if (p.status === 'paid') {
+        const u0 = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(p.user_id).first();
+        return { ok: 1, status: 'paid', hari: p.hari, paid_until: u0?.paid_until || '' };
+      }
+      const hari = Math.max(1, Math.min(3650, +p.hari || 1));
+      const up = await env.DB.prepare(
+        "UPDATE pesanan SET status='paid', dibayar=datetime('now','+8 hours') WHERE order_id=? AND status!='paid'"
+      ).bind(orderId).run();
+      if (up.meta.changes) {
+        await env.DB.prepare(
+          "UPDATE users SET paid=1, paid_until=datetime(" +
+          "CASE WHEN paid_until IS NOT NULL AND paid_until >= datetime('now','+8 hours') " +
+          "THEN paid_until ELSE datetime('now','+8 hours') END, '+" + hari + " day') WHERE id=?"
+        ).bind(p.user_id).run();
+      }
+      const row = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(p.user_id).first();
+      return { ok: 1, status: 'paid', hari, paid_until: row?.paid_until || '' };
+    }
+
+    if (u.pathname === '/api/pay/create' && req.method === 'POST') {
+      const ctx = await authCtx();
+      if (!ctx.user) return J({ e: 'unauthorized' }, 401);
+      if (!env.MIDTRANS_SERVER_KEY) return J({ e: 'midtrans_off' }, 503);
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const kodePaket = String(d.paket || 'harian').toLowerCase();
+      const pkt = PAKET_BAYAR[kodePaket];
+      if (!pkt) return J({ e: 'paket' }, 400);
+
+      const orderId = 'PCN-' + ctx.user.id + '-' + Date.now() + '-' + kodeAcak(4);
+      try {
+        const resp = await fetch(midBase(env) + '/snap/v1/transactions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': midAuth(env)
+          },
+          body: JSON.stringify({
+            transaction_details: { order_id: orderId, gross_amount: pkt.harga },
+            item_details: [{ id: kodePaket, price: pkt.harga, quantity: 1, name: pkt.label }],
+            customer_details: { first_name: ctx.user.nama || 'Guru' }
+          })
+        });
+        const j = await resp.json().catch(() => ({}));
+        if (!resp.ok || !j.token) return J({ e: 'midtrans', detail: j.error_messages || [] }, 502);
+
+        await env.DB.prepare(
+          "INSERT INTO pesanan(order_id,user_id,paket,hari,harga,status,snap_token,snap_url) VALUES(?,?,?,?,?,'pending',?,?)"
+        ).bind(orderId, ctx.user.id, kodePaket, pkt.hari, pkt.harga, j.token, j.redirect_url || '').run();
+
+        return J({
+          ok: 1,
+          order_id: orderId,
+          snap_token: j.token,
+          redirect_url: j.redirect_url || '',
+          client_key: env.MIDTRANS_CLIENT_KEY || '',
+          is_prod: env.MIDTRANS_IS_PROD === '1' ? 1 : 0,
+          paket: kodePaket,
+          hari: pkt.hari,
+          harga: pkt.harga
+        });
+      } catch (e) {
+        return J({ e: 'midtrans' }, 502);
+      }
+    }
+
+    if (u.pathname === '/api/pay/webhook' && req.method === 'POST') {
+      if (!env.MIDTRANS_SERVER_KEY) return J({ e: 'midtrans_off' }, 503);
+      let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+      const orderId = String(d.order_id || '');
+      const statusCode = String(d.status_code || '');
+      const grossAmount = String(d.gross_amount || '');
+      const sig = String(d.signature_key || '').toLowerCase();
+      if (!orderId || !sig) return J({ e: 'data' }, 400);
+
+      const expected = await sha512(orderId + statusCode + grossAmount + env.MIDTRANS_SERVER_KEY);
+      if (sig !== expected.toLowerCase()) return J({ e: 'signature' }, 403);
+
+      const ts = String(d.transaction_status || '');
+      const fraud = String(d.fraud_status || '');
+      const lunas = ts === 'settlement' || (ts === 'capture' && (!fraud || fraud === 'accept'));
+      try {
+        if (lunas) {
+          const r = await aktifkanPesanan(orderId);
+          if (!r) return J({ e: 'order' }, 404);
+          return J(r);
+        }
+        if (ts === 'cancel' || ts === 'deny' || ts === 'expire') {
+          await env.DB.prepare("UPDATE pesanan SET status=? WHERE order_id=? AND status!='paid'").bind(ts, orderId).run();
+        }
+        return J({ ok: 1, status: ts || 'pending' });
+      } catch (e) {
+        return J({ e: 'db' }, 500);
+      }
+    }
+
+    if (u.pathname === '/api/pay/status' && req.method === 'GET') {
+      const ctx = await authCtx();
+      if (!ctx.user) return J({ e: 'unauthorized' }, 401);
+      const orderId = cut(u.searchParams.get('order_id'), 80).trim();
+      if (!orderId) return J({ e: 'data' }, 400);
+      try {
+        const p = await env.DB.prepare('SELECT order_id,user_id,hari,status,snap_url FROM pesanan WHERE order_id=? AND user_id=?')
+          .bind(orderId, ctx.user.id).first();
+        if (!p) return J({ e: 'order' }, 404);
+        if (p.status === 'paid') {
+          const u0 = await env.DB.prepare('SELECT paid_until FROM users WHERE id=?').bind(ctx.user.id).first();
+          return J({ ok: 1, status: 'paid', hari: p.hari, paid_until: u0?.paid_until || '' });
+        }
+        if (env.MIDTRANS_SERVER_KEY) {
+          const resp = await fetch(midApi(env) + '/v2/' + encodeURIComponent(orderId) + '/status', {
+            headers: { 'Accept': 'application/json', 'Authorization': midAuth(env) }
+          });
+          const j = await resp.json().catch(() => ({}));
+          const ts = String(j.transaction_status || '');
+          const fraud = String(j.fraud_status || '');
+          if (ts === 'settlement' || (ts === 'capture' && (!fraud || fraud === 'accept'))) {
+            return J(await aktifkanPesanan(orderId));
+          }
+          if (ts === 'cancel' || ts === 'deny' || ts === 'expire') {
+            await env.DB.prepare("UPDATE pesanan SET status=? WHERE order_id=? AND status!='paid'").bind(ts, orderId).run();
+            return J({ ok: 1, status: ts });
+          }
+        }
+        return J({ ok: 1, status: p.status, redirect_url: p.snap_url || '' });
       } catch (e) {
         return J({ e: 'db' }, 500);
       }

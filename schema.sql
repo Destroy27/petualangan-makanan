@@ -51,6 +51,21 @@ CREATE TABLE IF NOT EXISTS kode_bayar(
   dipakai TEXT
 );
 
+CREATE TABLE IF NOT EXISTS pesanan(
+  order_id TEXT PRIMARY KEY,
+  user_id INTEGER,
+  paket TEXT,
+  hari INTEGER,
+  harga INTEGER,
+  status TEXT DEFAULT 'pending',
+  snap_token TEXT,
+  snap_url TEXT,
+  dibuat TEXT DEFAULT (datetime('now','+8 hours')),
+  dibayar TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pesanan_user ON pesanan(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_users_token ON users(token);
 CREATE INDEX IF NOT EXISTS idx_users_nama ON users(nama);
 CREATE INDEX IF NOT EXISTS idx_murid_tenant ON murid(tenant);

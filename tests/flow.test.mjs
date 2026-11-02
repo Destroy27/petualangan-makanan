@@ -48,16 +48,21 @@ const post = (path, body, token) => json(path, {
 const get = (path, token) => json(path, token ? { headers: { Authorization: 'Bearer ' + token } } : {});
 const del = (path, token) => json(path, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
 
-// 1) Daftar guru tanpa kode = coba gratis 3 hari
+// 1) Daftar guru tanpa kode = akun dibuat tetapi belum aktif (anti akun trial ganda), lalu aktif setelah kode/bayar
 let guruA;
 {
   const r = await post('/api/auth/register', { nama: 'Guru A', pin: '1234', role: 'guru' });
   guruA = r.d;
   ok('daftar guru tanpa kode berhasil', r.status === 200 && guruA.ok === 1, JSON.stringify(r.d));
-  ok('akun guru baru langsung aktif (masa coba)', guruA.user?.active === 1 && !!guruA.user?.paid_until, JSON.stringify(guruA.user));
+  ok('akun baru tanpa kode belum aktif (mencegah penyalahgunaan trial)', guruA.user?.active === 0 && !guruA.user?.paid_until, JSON.stringify(guruA.user));
   ok('tenant guru terbentuk dari id', /^g\d+$/.test(guruA.user?.tenant || ''), guruA.user?.tenant);
+  const blokToken = await post('/api/token/create', {}, guruA.token);
+  ok('akun belum bayar tidak bisa membuat token', blokToken.status === 403 && blokToken.d.e === 'expired', JSON.stringify(blokToken.d));
+  const kodeAwal = await post('/api/owner/kode', { jumlah: 1, hari: 3 }, 'rahasia');
+  const aktifkan = await post('/api/pay/redeem', { kode: kodeAwal.d.list[0].kode }, guruA.token);
+  ok('akun aktif setelah redeem kode', aktifkan.status === 200 && !!aktifkan.d.paid_until, JSON.stringify(aktifkan.d));
   const me = await get('/api/auth/me', guruA.token);
-  ok('token guru valid untuk /api/auth/me', me.status === 200 && me.d.user?.nama === 'Guru A', JSON.stringify(me.d));
+  ok('token guru valid untuk /api/auth/me dan aktif', me.status === 200 && me.d.user?.nama === 'Guru A' && !!me.d.user?.active, JSON.stringify(me.d));
 }
 
 // 2) Murid, soal, token, login siswa
@@ -155,10 +160,10 @@ let muridId, soalId, tokenSiswa;
   ok('guru B tidak melihat soal guru A', (soalB.d.list || []).length === 0, JSON.stringify(soalB.d.list));
 
   const hapus = await del('/api/soal?id=' + soalId, guruB.token);
-  ok('guru B tidak bisa menghapus soal guru A', hapus.status === 200 && (await get('/api/soal', guruA.token)).d.list?.some(x => x.id === soalId), JSON.stringify(hapus.d));
+  ok('guru B tidak bisa menghapus soal guru A', (hapus.status === 200 || hapus.status === 403) && (await get('/api/soal', guruA.token)).d.list?.some(x => x.id === soalId), JSON.stringify(hapus.d));
 
   const hapusMurid = await del('/api/murid?id=' + muridId, guruB.token);
-  ok('guru B tidak bisa menghapus murid guru A', hapusMurid.status === 200 && (await get('/api/murid', guruA.token)).d.list?.some(x => x.id === muridId), JSON.stringify(hapusMurid.d));
+  ok('guru B tidak bisa menghapus murid guru A', (hapusMurid.status === 200 || hapusMurid.status === 403) && (await get('/api/murid', guruA.token)).d.list?.some(x => x.id === muridId), JSON.stringify(hapusMurid.d));
 }
 
 // 5) Kode aktivasi dan perpanjangan
@@ -193,6 +198,34 @@ let muridId, soalId, tokenSiswa;
   ok('guru kedaluwarsa tidak bisa menambah murid', m.status === 403 && m.d.e === 'expired', JSON.stringify(m.d));
   const baca = await get('/api/murid', guruA.token);
   ok('guru kedaluwarsa masih bisa membaca data', baca.status === 200, JSON.stringify(baca.d));
+}
+
+// 7) Webhook pembayaran otomatis Midtrans (dengan verifikasi SHA-512)
+{
+  env.MIDTRANS_SERVER_KEY = 'SB-Mid-server-test123';
+  const orderId = 'PCN-' + guruA.user.id + '-TEST1';
+  await env.DB.prepare(
+    "INSERT INTO pesanan(order_id,user_id,paket,hari,harga,status,snap_token,snap_url) VALUES(?,?,'mingguan',7,20000,'pending','tok1','https://snap.test')"
+  ).bind(orderId, guruA.user.id).run();
+
+  const buruk = await post('/api/pay/webhook', {
+    order_id: orderId, status_code: '200', gross_amount: '20000.00',
+    transaction_status: 'settlement', signature_key: 'palsu'
+  });
+  ok('webhook Midtrans signature salah ditolak 403', buruk.status === 403, JSON.stringify(buruk.d));
+
+  const raw = new TextEncoder().encode(orderId + '200' + '20000.00' + env.MIDTRANS_SERVER_KEY);
+  const buf = await crypto.subtle.digest('SHA-512', raw);
+  const sig = [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2, '0')).join('');
+
+  const sah = await post('/api/pay/webhook', {
+    order_id: orderId, status_code: '200', gross_amount: '20000.00',
+    transaction_status: 'settlement', signature_key: sig
+  });
+  ok('webhook Midtrans sah mengaktifkan langganan guru', sah.status === 200 && sah.d.status === 'paid', JSON.stringify(sah.d));
+
+  const me = await get('/api/auth/me', guruA.token);
+  ok('guru kembali aktif setelah pembayaran Midtrans', !!me.d.user?.active, JSON.stringify(me.d.user));
 }
 
 const lulus = hasil.filter(x => x.lulus).length;

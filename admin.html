@@ -100,7 +100,13 @@ footer a{color:var(--pri2)}
 .sndPill:active:not(:disabled){transform:translateY(1px)}
 .ownerBox{max-width:520px}
 .ownerOut{font-family:ui-monospace,Consolas,monospace;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-all;margin-top:10px}
-@media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}.banner{padding:12px 14px}}
+.pkgGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.pkg{border:2px solid var(--line);border-radius:14px;padding:10px 8px;background:var(--soft);text-align:center;cursor:pointer;transition:transform .15s,border-color .15s,background .15s}
+.pkg:hover{transform:translateY(-2px);border-color:var(--pri)}
+.pkg b{display:block;font-family:Fredoka,system-ui,sans-serif;font-size:.95rem;color:var(--ink)}
+.pkg span{display:block;font-weight:800;color:var(--pri2);font-size:1.02rem;margin:2px 0}
+.pkg small{display:block;font-size:.72rem;color:var(--mut)}
+@media(max-width:560px){.wrap{padding:16px 10px 30px}.card{padding:14px}header h1{font-size:1.45rem}.tokenCode{font-size:1.35rem}.banner{padding:12px 14px}.pkgGrid{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 <link rel="stylesheet" href="admin.css">
@@ -138,9 +144,9 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
   <form id="formRegister" hidden>
     <label>Nama guru<input id="regNama" autocomplete="username" placeholder="Nama guru"></label>
     <label>PIN<input id="regPin" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter"></label>
-    <label>Kode aktivasi (opsional)<input id="regKode" placeholder="Kosongkan untuk coba gratis 3 hari"></label>
+    <label>Kode aktivasi (opsional)<input id="regKode" placeholder="Kosongkan jika ingin bayar via Midtrans"></label>
     <button class="pri" type="submit" style="width:100%">Daftar</button>
-    <p class="hint">Belum punya kode? Kosongkan kolom kode untuk mencoba gratis 3 hari. Kode aktivasi didapat dari pemilik setelah pembayaran.</p>
+    <p class="hint">Setelah daftar, Anda dapat mengaktifkan paket via Midtrans (QRIS/E-Wallet/VA mulai Rp 10.000/hari) atau kode aktivasi.</p>
   </form>
 
   <p class="msg" id="authMsg"></p>
@@ -175,16 +181,26 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
     <section class="card" id="subCard">
       <h2>⭐ Langganan</h2>
-      <p class="sub" id="renewHint">Perpanjang masa aktif dengan kode aktivasi.</p>
-      <div class="row">
-        <label>Kode perpanjangan<input id="renewKode" placeholder="PCN-XXXX-XXXX"></label>
-        <button class="pri" id="btnRenew" type="button">Perpanjang</button>
+      <p class="sub" id="renewHint">Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.</p>
+      <div class="pkgGrid">
+        <button class="pkg" type="button" data-paket="harian">
+          <b>Harian</b><span>Rp 10.000</span><small>Aktif 1 hari</small>
+        </button>
+        <button class="pkg" type="button" data-paket="mingguan">
+          <b>Mingguan</b><span>Rp 20.000</span><small>Aktif 7 hari</small>
+        </button>
+        <button class="pkg" type="button" data-paket="bulanan">
+          <b>Bulanan</b><span>Rp 35.000</span><small>Aktif 30 hari</small>
+        </button>
       </div>
-      <ol class="hint" style="padding-left:18px;margin:10px 0 0">
-        <li>Hubungi pemilik dan lakukan pembayaran.</li>
-        <li>Pemilik mengirim kode aktivasi.</li>
-        <li>Masukkan kode di atas. Masa aktif bertambah 30 hari.</li>
-      </ol>
+      <div id="payStatusBox" hidden style="margin:8px 0">
+        <button class="ghost small" id="btnCheckPay" type="button" style="width:100%">Cek status pembayaran terakhir</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <label>Punya kode aktivasi?<input id="renewKode" placeholder="PCN-XXXX-XXXX"></label>
+        <button class="pri" id="btnRenew" type="button">Pakai kode</button>
+      </div>
+      <p class="hint">Pembayaran paket di atas diproses otomatis lewat Midtrans (QRIS, GoPay, DANA, ShopeePay, Virtual Account).</p>
     </section>
   </div>
 
@@ -315,7 +331,11 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     token: 'Token tidak valid atau kedaluwarsa.',
     siswa: 'Murid tidak ditemukan.',
     json: 'Data tidak terbaca.',
-    role: 'Peran tidak dikenal.'
+    role: 'Peran tidak dikenal.',
+    midtrans_off: 'Pembayaran otomatis Midtrans belum diaktifkan pemilik. Gunakan kode aktivasi.',
+    midtrans: 'Gagal menghubungi Midtrans. Coba lagi sebentar.',
+    paket: 'Paket tidak valid.',
+    order: 'Pesanan tidak ditemukan.'
   };
 
   function $(id) { return document.getElementById(id); }
@@ -455,7 +475,12 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
       $('regPin').value = '';
       $('regKode').value = '';
       masukDash(d.user);
-      toast(d.user.trial ? 'Akun dibuat. Masa coba gratis 3 hari dimulai.' : 'Akun aktif. Selamat mengajar.');
+      toast(d.user.active ? 'Akun aktif. Selamat mengajar.' : 'Akun dibuat. Pilih paket untuk mengaktifkan kelas.');
+      if (!d.user.active) {
+        setTimeout(function () {
+          $('subCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
     } catch (err) {
       setMsg('authMsg', err.message, false);
     } finally {
@@ -489,8 +514,8 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     var kelas = 'banner';
     if (!aktif) {
       kelas += ' bad';
-      judul.textContent = 'Masa aktif sudah habis';
-      ket.textContent = 'Perpanjang untuk membuka kelola murid, soal, dan token.';
+      judul.textContent = user.paid_until ? 'Masa aktif sudah habis' : 'Akun belum aktif';
+      ket.textContent = 'Pilih paket Midtrans (mulai Rp 10.000/hari) atau masukkan kode aktivasi untuk membuka kelola kelas.';
     } else if (sisa != null && sisa <= 3) {
       kelas += ' warn';
       judul.textContent = sisa <= 0 ? 'Kurang dari 1 hari lagi' : 'Sisa ' + sisa + ' hari lagi';
@@ -498,13 +523,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     } else {
       kelas += ' ok';
       judul.textContent = 'Aktif' + (sisa != null ? ' - sisa ' + sisa + ' hari' : '');
-      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '. Perpanjangan menambah 30 hari.';
+      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '.';
     }
     banner.className = kelas;
 
     $('renewHint').textContent = aktif
-      ? 'Masa aktif saat ini sampai ' + waktu(user.paid_until) + '. Perpanjangan akan menambah 30 hari.'
-      : 'Masa aktif sudah habis. Perpanjang untuk membuka kelola murid, soal, dan token.';
+      ? 'Masa aktif saat ini sampai ' + waktu(user.paid_until) + '. Pilih paket di bawah untuk menambah masa aktif.'
+      : 'Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.';
     var need = document.querySelectorAll('.needActive');
     for (var i = 0; i < need.length; i++) need[i].disabled = !aktif;
   }
@@ -668,7 +693,86 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
-  // ---------- Perpanjangan ----------
+  // ---------- Perpanjangan & Midtrans ----------
+  var LAST_ORDER = 'pcn_last_order';
+
+  function muatSnapJs(clientKey, isProd) {
+    return new Promise(function (resolve) {
+      if (window.snap && window.snap.pay) { resolve(true); return; }
+      if (!clientKey) { resolve(false); return; }
+      var s = document.createElement('script');
+      s.src = isProd
+        ? 'https://app.midtrans.com/snap/snap.js'
+        : 'https://app.sandbox.midtrans.com/snap/snap.js';
+      s.setAttribute('data-client-key', clientKey);
+      s.onload = function () { resolve(!!(window.snap && window.snap.pay)); };
+      s.onerror = function () { resolve(false); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function cekStatusPesanan(orderId, senyap) {
+    if (!orderId) return;
+    try {
+      var d = await api('/api/pay/status?order_id=' + encodeURIComponent(orderId));
+      if (d.status === 'paid') {
+        try { localStorage.removeItem(LAST_ORDER); } catch (e) {}
+        $('payStatusBox').hidden = true;
+        state.user.paid_until = d.paid_until;
+        state.user.active = 1;
+        renderStatus(state.user);
+        simpanSesi(state.token, state.user);
+        toast('Pembayaran berhasil! Masa aktif ditambah ' + d.hari + ' hari.');
+        await muatToken();
+      } else if (!senyap) {
+        toast('Status pembayaran: ' + (d.status || 'menunggu pembayaran') + '.');
+      }
+    } catch (err) {
+      if (!senyap) toast(err.message);
+    }
+  }
+
+  var tombolPaket = document.querySelectorAll('.pkg[data-paket]');
+  for (var ip = 0; ip < tombolPaket.length; ip++) {
+    tombolPaket[ip].onclick = async function () {
+      var paket = this.getAttribute('data-paket');
+      var selesai = busy(this, 'Membuat...');
+      try {
+        var d = await api('/api/pay/create', { method: 'POST', body: { paket: paket } });
+        try { localStorage.setItem(LAST_ORDER, d.order_id); } catch (e) {}
+        $('payStatusBox').hidden = false;
+        var siapSnap = await muatSnapJs(d.client_key, d.is_prod);
+        if (siapSnap && window.snap && window.snap.pay) {
+          window.snap.pay(d.snap_token, {
+            onSuccess: function () { cekStatusPesanan(d.order_id, false); },
+            onPending: function () { toast('Selesaikan pembayaran, lalu klik Cek status pembayaran.'); },
+            onError: function () { toast('Pembayaran gagal atau dibatalkan.'); },
+            onClose: function () { cekStatusPesanan(d.order_id, true); }
+          });
+        } else if (d.redirect_url) {
+          window.open(d.redirect_url, '_blank', 'noopener');
+          toast('Halaman pembayaran dibuka. Setelah bayar, klik Cek status pembayaran.');
+        }
+      } catch (err) {
+        toast(err.message);
+      } finally {
+        selesai();
+      }
+    };
+  }
+
+  $('btnCheckPay').onclick = async function () {
+    var ord = '';
+    try { ord = localStorage.getItem(LAST_ORDER) || ''; } catch (e) {}
+    if (!ord) { $('payStatusBox').hidden = true; return; }
+    var selesai = busy(this, 'Mengecek...');
+    try { await cekStatusPesanan(ord, false); } finally { selesai(); }
+  };
+
+  try {
+    if (localStorage.getItem(LAST_ORDER)) $('payStatusBox').hidden = false;
+  } catch (e) {}
+
   $('btnRenew').onclick = async function () {
     var kode = $('renewKode').value.trim();
     if (!kode) { toast('Masukkan kode perpanjangan.'); return; }
