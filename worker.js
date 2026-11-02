@@ -39,7 +39,7 @@ export default {
     const origin = env.ALLOWED_ORIGIN || '*';
     const h = {
       'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'POST,GET,DELETE,OPTIONS',
+      'Access-Control-Allow-Methods': 'POST,GET,PUT,DELETE,OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type,Authorization',
       'Access-Control-Max-Age': '86400',
       'Cache-Control': 'no-store',
@@ -121,12 +121,13 @@ export default {
       }
     }
 
-    // ---------- Papan skor publik ----------
+    // ---------- Papan skor publik (per guru & per kelas) ----------
     if (u.pathname === '/api/papan' && req.method === 'GET') {
       if (env.PAPAN_PUBLIK === '0') return J({ top: [] });
       try {
         let tenant = u.searchParams.get('tenant') || '';
         const kode = u.searchParams.get('token') || '';
+        const kelas = cut(u.searchParams.get('kelas') || '', 12).trim();
         if (kode) {
           tenant = await tokenTenant(kode);
           if (!tenant) return J({ top: [] });
@@ -134,23 +135,108 @@ export default {
           const t = await tokenTenant(tenant);
           if (t) tenant = t;
         }
-        const sql = tenant
-          ? 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi WHERE tenant=? GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10'
-          : 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10';
-        const r = tenant
-          ? await env.DB.prepare(sql).bind(tenant).all()
-          : await env.DB.prepare(sql).all();
+        let sql = 'SELECT nama,kelas,MAX(skor) maks,COUNT(*) sesi FROM sesi';
+        const conds = [];
+        const binds = [];
+        if (tenant) { conds.push('tenant=?'); binds.push(tenant); }
+        if (kelas) { conds.push("IFNULL(kelas,'')=?"); binds.push(kelas); }
+        if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
+        sql += ' GROUP BY nama,kelas ORDER BY maks DESC, sesi DESC LIMIT 10';
+        const st = env.DB.prepare(sql);
+        const r = binds.length ? await st.bind(...binds).all() : await st.all();
         return J({ top: r.results || [] });
       } catch (e) {
         return J({ top: [] });
       }
     }
 
-    // ---------- Rekap guru ----------
+    // ---------- Rekap guru (+ CRUD data hasil siswa) ----------
     if (u.pathname === '/api/rekap') {
       const ctx = await authCtx();
       if (!ctx.admin) return J({ e: 'unauthorized' }, 401);
       const t = ctx.tenant;
+
+      if (req.method === 'POST') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
+        let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+        const nama = cut(d.nama, 30).trim();
+        if (!nama) return J({ e: 'nama' }, 400);
+        const kelas = cut(d.kelas, 12).trim();
+        const skor = Math.max(0, Math.min(9999, +d.skor || 0));
+        const level = Math.max(0, Math.min(2, +d.level || 1));
+        const makanan = cut(d.makanan || 'Manual', 20).trim();
+        try {
+          const r = await env.DB.prepare(
+            "INSERT INTO sesi(tenant,nama,kelas,mode,tim,level,makanan,skor) VALUES(?,?,?,'solo','',?,?,?)"
+          ).bind(t || '', nama, kelas, level, makanan, skor).run();
+          return J({ ok: 1, id: r.meta.last_row_id });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
+
+      if (req.method === 'PUT') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
+        let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+        const oldNama = cut(d.old_nama, 30).trim();
+        const oldKelas = cut(d.old_kelas, 12).trim();
+        const nama = cut(d.nama, 30).trim();
+        const kelas = cut(d.kelas, 12).trim();
+        if (!oldNama || !nama) return J({ e: 'nama' }, 400);
+        try {
+          if (t) {
+            await env.DB.prepare("UPDATE sesi SET nama=?, kelas=? WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=?")
+              .bind(nama, kelas, t, oldNama, oldKelas).run();
+            await env.DB.prepare("UPDATE murid SET nama=?, kelas=? WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=?")
+              .bind(nama, kelas, t, oldNama, oldKelas).run();
+          } else {
+            await env.DB.prepare("UPDATE sesi SET nama=?, kelas=? WHERE nama=? AND IFNULL(kelas,'')=?")
+              .bind(nama, kelas, oldNama, oldKelas).run();
+          }
+          if (d.skor !== undefined && d.skor !== null && d.skor !== '') {
+            const skorBaru = Math.max(0, Math.min(9999, +d.skor || 0));
+            const sRow = t
+              ? await env.DB.prepare("SELECT id FROM sesi WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=? ORDER BY skor DESC, id DESC LIMIT 1")
+                  .bind(t, nama, kelas).first()
+              : await env.DB.prepare("SELECT id FROM sesi WHERE nama=? AND IFNULL(kelas,'')=? ORDER BY skor DESC, id DESC LIMIT 1")
+                  .bind(nama, kelas).first();
+            if (sRow?.id) {
+              await env.DB.prepare('UPDATE sesi SET skor=? WHERE id=?').bind(skorBaru, sRow.id).run();
+            }
+          }
+          return J({ ok: 1 });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
+
+      if (req.method === 'DELETE') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
+        const nama = cut(u.searchParams.get('nama') || '', 30).trim();
+        const kelas = cut(u.searchParams.get('kelas') || '', 12).trim();
+        if (!nama) return J({ e: 'nama' }, 400);
+        try {
+          if (t) {
+            await env.DB.prepare(
+              "DELETE FROM jawaban WHERE sesi_id IN (SELECT id FROM sesi WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=?)"
+            ).bind(t, nama, kelas).run();
+            await env.DB.prepare(
+              "DELETE FROM sesi WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=?"
+            ).bind(t, nama, kelas).run();
+          } else {
+            await env.DB.prepare(
+              "DELETE FROM jawaban WHERE sesi_id IN (SELECT id FROM sesi WHERE nama=? AND IFNULL(kelas,'')=?)"
+            ).bind(nama, kelas).run();
+            await env.DB.prepare(
+              "DELETE FROM sesi WHERE nama=? AND IFNULL(kelas,'')=?"
+            ).bind(nama, kelas).run();
+          }
+          return J({ ok: 1 });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
+
       const whereSesi = t ? ' WHERE tenant=?' : '';
       const whereJaw = t ? ' WHERE sesi_id IN (SELECT id FROM sesi WHERE tenant=?)' : '';
       const ambil = async (sql) => {
@@ -302,6 +388,34 @@ export default {
           const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
             .bind(tenant, nama, cut(d.kelas, 12), cut(d.pin, 8)).run();
           return J({ ok: 1, id: r.meta.last_row_id });
+        } catch (e) {
+          return J({ e: 'db' }, 500);
+        }
+      }
+
+      if (req.method === 'PUT') {
+        if (!bolehTulis(ctx)) return J({ e: 'expired' }, 403);
+        let d; try { d = await req.json(); } catch { return J({ e: 'json' }, 400); }
+        const id = +d.id;
+        const nama = cut(d.nama, 30).trim();
+        const kelas = cut(d.kelas, 12).trim();
+        if (!id || !nama) return J({ e: 'data' }, 400);
+        try {
+          const lama = tenant
+            ? await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid WHERE id=? AND tenant=?').bind(id, tenant).first()
+            : await env.DB.prepare('SELECT id,nama,kelas,pin FROM murid WHERE id=?').bind(id).first();
+          if (!lama) return J({ e: 'siswa' }, 404);
+          const pinBaru = d.pin !== undefined ? cut(d.pin, 8).trim() : (lama.pin || '');
+          if (tenant) {
+            await env.DB.prepare('UPDATE murid SET nama=?, kelas=?, pin=? WHERE id=? AND tenant=?')
+              .bind(nama, kelas, pinBaru, id, tenant).run();
+            await env.DB.prepare("UPDATE sesi SET nama=?, kelas=? WHERE tenant=? AND nama=? AND IFNULL(kelas,'')=?")
+              .bind(nama, kelas, tenant, lama.nama, lama.kelas || '').run();
+          } else {
+            await env.DB.prepare('UPDATE murid SET nama=?, kelas=?, pin=? WHERE id=?')
+              .bind(nama, kelas, pinBaru, id).run();
+          }
+          return J({ ok: 1 });
         } catch (e) {
           return J({ e: 'db' }, 500);
         }

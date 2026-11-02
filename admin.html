@@ -289,12 +289,21 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <section class="card">
     <h2>📊 Rekap nilai</h2>
-    <p class="sub">Nilai semua murid, per kelas, dan per materi. Klik Muat rekap untuk melihat.</p>
+    <p class="sub">Nilai semua murid, per kelas, dan per materi. Klik Muat rekap untuk melihat, mengedit, atau menghapus hasil.</p>
     <div class="row">
       <button class="pri" id="btnRekap" type="button">Muat rekap</button>
       <button class="ghost" id="btnCsv" type="button" disabled>Unduh CSV</button>
       <label style="flex:0 1 180px">Kelas<select id="rekapKelas"><option value="">Semua kelas</option></select></label>
     </div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-weight:700;color:var(--pri2);font-size:.88rem">+ Tambah Nilai / Hasil Siswa Secara Manual</summary>
+      <form id="formHasilManual" class="row" style="margin-top:8px;padding:12px;border-radius:14px;background:var(--soft);border:1px solid var(--line)">
+        <label>Nama siswa<input id="manualNama" placeholder="Nama lengkap" required></label>
+        <label>Kelas<input id="manualKelas" placeholder="Contoh: 5A"></label>
+        <label>Skor<input id="manualSkor" type="number" min="0" max="9999" placeholder="Contoh: 500" required></label>
+        <button class="pri needActive" type="submit">Simpan Nilai</button>
+      </form>
+    </details>
     <div id="rekapOut"></div>
   </section>
 </section>
@@ -579,6 +588,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     setTimeout(function () { $('renewKode').focus(); }, 350);
   };
 
+  $('btnLogout').onclick = function () {
+    hapusSesi();
+    $('loginNama').value = '';
+    $('loginPin').value = '';
+    showAuth('login');
+  };
+
   $('btnTutupPanduan').onclick = function () {
     $('panduanBox').hidden = true;
     try { localStorage.setItem('pcn_panduan', '0'); } catch (e) {}
@@ -606,8 +622,33 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     }
     $('muridList').innerHTML = state.murid.map(function (m) {
       return '<div class="item"><div><b>' + esc(m.nama) + '</b><small>' + esc(m.kelas || 'Tanpa kelas') + '</small></div>' +
-        '<button class="del" type="button" data-id="' + m.id + '">Hapus</button></div>';
+        '<div style="display:flex;gap:6px"><button class="ghost small editMurid" type="button" data-id="' + m.id + '">Edit</button>' +
+        '<button class="del" type="button" data-id="' + m.id + '">Hapus</button></div></div>';
     }).join('');
+    var tEdit = $('muridList').querySelectorAll('.editMurid');
+    for (var j = 0; j < tEdit.length; j++) {
+      tEdit[j].onclick = async function () {
+        var id = +this.dataset.id;
+        var cur = state.murid.find(function (x) { return +x.id === id; });
+        if (!cur) return;
+        var namaBaru = prompt('Ubah nama murid:', cur.nama || '');
+        if (namaBaru === null) return;
+        namaBaru = namaBaru.trim();
+        if (!namaBaru) { toast('Nama tidak boleh kosong.'); return; }
+        var kelasBaru = prompt('Ubah kelas murid:', cur.kelas || '');
+        if (kelasBaru === null) return;
+        var pinBaru = prompt('Ubah PIN murid (kosongkan jika tidak ingin mengubah PIN):', '');
+        var body = { id: id, nama: namaBaru, kelas: kelasBaru.trim() };
+        if (pinBaru !== null && pinBaru.trim() !== '') body.pin = pinBaru.trim();
+        var selesai = busy(this, '...');
+        try {
+          await api('/api/murid', { method: 'PUT', body: body });
+          toast('Data murid diperbarui.');
+          await muatMurid();
+          await muatRekap();
+        } catch (err) { toast(err.message); } finally { selesai(); }
+      };
+    }
     var tombol = $('muridList').querySelectorAll('.del');
     for (var i = 0; i < tombol.length; i++) {
       tombol[i].onclick = async function () {
@@ -921,11 +962,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
     h += '<h2 style="margin-top:16px">Peringkat siswa</h2>';
     if (urut.length) {
-      h += '<div class="tableWrap"><table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th class="num">Sesi</th><th class="num">Rata-rata</th><th class="num">Terbaik</th><th>Terakhir main</th></tr></thead><tbody>';
+      h += '<div class="tableWrap"><table><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th class="num">Sesi</th><th class="num">Rata-rata</th><th class="num">Terbaik</th><th>Terakhir main</th><th>Aksi</th></tr></thead><tbody>';
       urut.forEach(function (x, i) {
         h += '<tr><td>' + (i + 1) + '</td><td>' + esc(x.nama) + '</td><td>' + esc(x.kelas || '-') + '</td>' +
           '<td class="num">' + num(x.sesi) + '</td><td class="num">' + num(x.rata) + '</td>' +
-          '<td class="num"><b>' + num(x.maks) + '</b></td><td>' + esc(x.terakhir || '-') + '</td></tr>';
+          '<td class="num"><b>' + num(x.maks) + '</b></td><td>' + esc(x.terakhir || '-') + '</td>' +
+          '<td><button class="ghost small editHasil" type="button" data-nama="' + esc(x.nama) + '" data-kelas="' + esc(x.kelas || '') + '" data-skor="' + (+x.maks || 0) + '" style="padding:4px 8px;font-size:.75rem">Edit</button> ' +
+          '<button class="del hapusHasil" type="button" data-nama="' + esc(x.nama) + '" data-kelas="' + esc(x.kelas || '') + '" style="padding:4px 8px;font-size:.75rem">Hapus</button></td></tr>';
       });
       h += '</tbody></table></div>';
     } else {
@@ -956,7 +999,66 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     }
 
     $('rekapOut').innerHTML = h;
+
+    var tEditH = $('rekapOut').querySelectorAll('.editHasil');
+    for (var ei = 0; ei < tEditH.length; ei++) {
+      tEditH[ei].onclick = async function () {
+        var oldNama = this.getAttribute('data-nama') || '';
+        var oldKelas = this.getAttribute('data-kelas') || '';
+        var oldSkor = this.getAttribute('data-skor') || '0';
+        var nama = prompt('Ubah nama siswa pada rekap:', oldNama);
+        if (nama === null) return;
+        nama = nama.trim();
+        if (!nama) { toast('Nama tidak boleh kosong.'); return; }
+        var kelas = prompt('Ubah kelas siswa:', oldKelas);
+        if (kelas === null) return;
+        var skor = prompt('Ubah skor terbaik:', oldSkor);
+        if (skor === null) return;
+        var selesai = busy(this, '...');
+        try {
+          await api('/api/rekap', {
+            method: 'PUT',
+            body: { old_nama: oldNama, old_kelas: oldKelas, nama: nama, kelas: kelas.trim(), skor: +skor || 0 }
+          });
+          toast('Data hasil diperbarui.');
+          await muatRekap();
+          await muatMurid();
+        } catch (err) { toast(err.message); } finally { selesai(); }
+      };
+    }
+
+    var tHapusH = $('rekapOut').querySelectorAll('.hapusHasil');
+    for (var hi = 0; hi < tHapusH.length; hi++) {
+      tHapusH[hi].onclick = async function () {
+        var nama = this.getAttribute('data-nama') || '';
+        var kelas = this.getAttribute('data-kelas') || '';
+        if (!confirm('Hapus semua riwayat nilai untuk ' + nama + '?')) return;
+        var selesai = busy(this, '...');
+        try {
+          await api('/api/rekap?nama=' + encodeURIComponent(nama) + '&kelas=' + encodeURIComponent(kelas), { method: 'DELETE' });
+          toast('Hasil siswa dihapus.');
+          await muatRekap();
+        } catch (err) { toast(err.message); } finally { selesai(); }
+      };
+    }
   }
+
+  $('formHasilManual').onsubmit = async function (e) {
+    e.preventDefault();
+    var nama = $('manualNama').value.trim();
+    var kelas = $('manualKelas').value.trim();
+    var skor = +$('manualSkor').value || 0;
+    if (!nama) { toast('Nama siswa wajib diisi.'); return; }
+    var selesai = busy(this.querySelector('button[type="submit"]'), 'Menyimpan...');
+    try {
+      await api('/api/rekap', { method: 'POST', body: { nama: nama, kelas: kelas, skor: skor } });
+      $('manualNama').value = '';
+      $('manualKelas').value = '';
+      $('manualSkor').value = '';
+      toast('Nilai manual ditambahkan.');
+      await muatRekap();
+    } catch (err) { toast(err.message); } finally { selesai(); }
+  };
 
   $('rekapKelas').onchange = renderRekap;
 

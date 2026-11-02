@@ -104,6 +104,13 @@ let muridId, soalId, tokenSiswa;
   const bulk = await post('/api/murid', { list: [{ nama: 'Dodi', kelas: '5B' }, { nama: 'Eka', kelas: '5B' }] }, guruA.token);
   ok('guru bisa tambah banyak murid sekaligus', bulk.status === 200 && bulk.d.added === 2, JSON.stringify(bulk.d));
 
+  const editM = await json('/api/murid', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guruA.token },
+    body: JSON.stringify({ id: muridId, nama: 'Budi', kelas: '5A', pin: '1111' })
+  });
+  ok('guru bisa edit data murid (PUT /api/murid)', editM.status === 200 && editM.d.ok === 1, JSON.stringify(editM.d));
+
   const salah = await post('/api/siswa/login', { token: tokenSiswa, id: muridId, pin: '9999' });
   ok('login siswa dengan PIN salah ditolak', salah.status === 401 && salah.d.e === 'pin', JSON.stringify(salah.d));
 
@@ -151,6 +158,23 @@ let muridId, soalId, tokenSiswa;
   ok('log dengan token kedaluwarsa tetap tersimpan', r.status === 200 && r.d.ok === 1, JSON.stringify(r.d));
   const rekap = await get('/api/rekap', guruA.token);
   ok('log token kedaluwarsa tetap masuk ke tenant guru', rekap.d.ringkasan?.[0]?.sesi === 2, JSON.stringify(rekap.d.ringkasan));
+
+  const papan5A = await get('/api/papan?tenant=' + guruA.user.tenant + '&kelas=5A');
+  const papan5B = await get('/api/papan?tenant=' + guruA.user.tenant + '&kelas=5B');
+  ok('papan peringkat terfilter per kelas murid', papan5A.d.top?.length === 1 && (papan5B.d.top || []).length === 0, JSON.stringify({ a: papan5A.d.top, b: papan5B.d.top }));
+
+  const tambahHasil = await post('/api/rekap', { nama: 'Fajar Manual', kelas: '5B', skor: 450 }, guruA.token);
+  ok('guru bisa tambah nilai manual (POST /api/rekap)', tambahHasil.status === 200 && tambahHasil.d.ok === 1, JSON.stringify(tambahHasil.d));
+
+  const editHasil = await json('/api/rekap', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + guruA.token },
+    body: JSON.stringify({ old_nama: 'Fajar Manual', old_kelas: '5B', nama: 'Fajar Edit', kelas: '5B', skor: 550 })
+  });
+  ok('guru bisa edit data hasil (PUT /api/rekap)', editHasil.status === 200 && editHasil.d.ok === 1, JSON.stringify(editHasil.d));
+
+  const hapusHasil = await del('/api/rekap?nama=' + encodeURIComponent('Fajar Edit') + '&kelas=5B', guruA.token);
+  ok('guru bisa hapus data hasil (DELETE /api/rekap)', hapusHasil.status === 200 && hapusHasil.d.ok === 1, JSON.stringify(hapusHasil.d));
 }
 
 // 4) Isolasi antar guru

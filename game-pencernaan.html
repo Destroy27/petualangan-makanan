@@ -227,11 +227,11 @@ async function fetchTimeout(url,opt={},ms=10000){
   finally{if(tid)clearTimeout(tid)}
 }
 function boardRows(rows,judul,note){return '<h2>'+judul+'</h2>'+(rows.length?rows.map((x,i)=>'<div class="row'+(x.me?' me':'')+'"><span>'+(['🥇','🥈','🥉'][i]||(i+1)+'.')+' '+esc(x.nama)+(x.kelas?' <small style="opacity:.65">'+esc(x.kelas)+'</small>':'')+'</span><b>'+(+x.maks||0)+'</b></div>').join(''):'<p class="sub" style="margin:0">'+note+'</p>')}
-function board(){const db=DB.get();const my=ME&&db[ME]?db[ME].name:'';const loc=Object.values(db).filter(x=>x&&x.name).map(x=>({nama:x.name,maks:+x.best||0,me:x.name===my})).sort((a,b)=>b.maks-a.maks).slice(0,5);
- $('lb').innerHTML=boardRows(loc,'🏆 Papan Skor (perangkat ini)','Belum ada skor di perangkat ini.');
- if(!API_URL)return;
- fetch(API_URL+'/api/papan?tenant='+encodeURIComponent((db[ME]||{}).tenant||''),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
-  $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa · 10 teratas</p>'
+function board(){const db=DB.get();const me=ME&&db[ME]?db[ME]:{};const my=me.name||'';const kls=me.kelas||'';const tnt=me.tenant||currentTenant||'';const loc=Object.values(db).filter(x=>x&&x.name&&(!kls||x.kelas===kls)&&(!tnt||x.tenant===tnt)).map(x=>({nama:x.name,kelas:x.kelas,maks:+x.best||0,me:x.name===my})).sort((a,b)=>b.maks-a.maks).slice(0,5);
+ $('lb').innerHTML=boardRows(loc,'🏆 Papan Skor'+(kls?' Kelas '+esc(kls):'')+' (perangkat ini)','Belum ada skor di perangkat ini.');
+ if(!API_URL||!tnt)return;
+ fetch(API_URL+'/api/papan?tenant='+encodeURIComponent(tnt)+'&kelas='+encodeURIComponent(kls),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
+  $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor'+(kls?' Kelas '+esc(kls):' Kelas')+' (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa di kelasmu · 10 teratas</p>'
  }).catch(()=>{})}
 function showStart(){const m=DB.get()[ME]||{};$('who').textContent='👤 '+(m.name||'Siswa')+' · Rekor solo: '+(+m.best||0)+' · Main: '+(+m.plays||0)+'x ';show('s-start');board()}
 let currentToken='',currentTenant='',currentStudents=[];
