@@ -125,7 +125,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 <header>
   <div class="mascots" data-mascots></div>
   <h1><span class="bob">🍽️</span> Panel Guru</h1>
-  <p>Panel guru: kelola murid, soal, token akses, dan nilai.</p>
+  <p>Panel guru: kelola murid, soal, token akses, dan nilai. Semua langkah dijelaskan di bawah.</p>
   <button class="sndPill" id="snd" type="button" aria-pressed="true" aria-label="Matikan suara">♪ Suara aktif</button>
 </header>
 
@@ -137,16 +137,23 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <form id="formLogin">
     <label>Nama guru<input id="loginNama" autocomplete="username" placeholder="Nama yang dipakai saat daftar"></label>
-    <label>PIN<input id="loginPin" type="password" autocomplete="current-password" placeholder="PIN akun"></label>
-    <button class="pri" type="submit" style="width:100%">Masuk</button>
+    <label>PIN<input id="loginPin" type="password" autocomplete="current-password" placeholder="PIN akun guru"></label>
+    <button class="pri" type="submit" style="width:100%">Masuk ke Dashboard</button>
+    <p class="hint" style="text-align:center;margin-top:8px">Belum punya akun? Klik tab <b>Daftar Baru</b> di atas.</p>
   </form>
 
   <form id="formRegister" hidden>
-    <label>Nama guru<input id="regNama" autocomplete="username" placeholder="Nama guru"></label>
-    <label>PIN<input id="regPin" type="password" autocomplete="new-password" placeholder="Minimal 4 karakter"></label>
-    <label>Kode aktivasi (opsional)<input id="regKode" placeholder="Kosongkan jika ingin bayar via Midtrans"></label>
-    <button class="pri" type="submit" style="width:100%">Daftar</button>
-    <p class="hint">Setelah daftar, Anda dapat mengaktifkan paket via Midtrans (QRIS/E-Wallet/VA mulai Rp 10.000/hari) atau kode aktivasi.</p>
+    <label>Nama guru<input id="regNama" autocomplete="username" placeholder="Contoh: Bu Sari"></label>
+    <label>PIN (4-8 angka)<input id="regPin" type="password" autocomplete="new-password" placeholder="Contoh: 1234" inputmode="numeric" maxlength="8"></label>
+    <label>Kode aktivasi (jika punya)<input id="regKode" placeholder="Contoh: PCN-XXXX-XXXX (boleh dikosongkan)"></label>
+    <button class="pri" type="submit" style="width:100%">Buat Akun Guru</button>
+    <div style="margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.82rem;color:var(--mut)">
+      <b style="color:var(--ink)">Cara mulai:</b><br>
+      1. Isi nama dan PIN, lalu klik <b>Buat Akun Guru</b>.<br>
+      2. Setelah masuk dashboard, pilih paket pembayaran (Rp 10.000/hari).<br>
+      3. Bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
+      4. Akun otomatis aktif, lalu buat token untuk siswa.
+    </div>
   </form>
 
   <p class="msg" id="authMsg"></p>
@@ -162,6 +169,18 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     <button class="ghost small" id="btnLogout" type="button">Keluar</button>
   </div>
 
+  <div id="panduanBox" class="card" style="background:var(--soft);border:2px dashed var(--pri)">
+    <h2>📋 Panduan Langkah demi Langkah</h2>
+    <ol style="padding-left:18px;margin:8px 0 0;font-size:.88rem;color:var(--ink);line-height:1.7">
+      <li><b>Aktifkan kelas:</b> Pilih paket pembayaran di kartu Langganan (mulai Rp 10.000/hari) atau masukkan kode aktivasi.</li>
+      <li><b>Tambah murid:</b> Isi nama dan kelas murid di kartu Daftar Murid.</li>
+      <li><b>Buat token:</b> Klik "Buat token hari ini" di kartu Token Akses Siswa.</li>
+      <li><b>Bagikan token:</b> Tulis kode token 6 karakter di papan tulis, siswa masukkan di game.</li>
+      <li><b>Lihat nilai:</b> Klik "Muat rekap" di kartu Rekap Nilai untuk melihat hasil siswa.</li>
+    </ol>
+    <button class="ghost small" id="btnTutupPanduan" type="button" style="margin-top:8px">Sembunyikan panduan</button>
+  </div>
+
   <section id="subBanner" class="banner">
     <div>
       <span class="label">Status langganan</span>
@@ -173,15 +192,21 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <div class="grid">
     <section class="card">
-      <h2>🎟️ Token akses siswa</h2>
-      <p class="sub">Bagikan token ini ke siswa. Token berlaku sampai besok, satu token untuk semua murid.</p>
+      <h2>🎟️ Token Akses Siswa (Bagikan ke Murid)</h2>
+      <p class="sub">Token ini dipakai siswa untuk masuk ke game. Satu token berlaku untuk semua murid, sampai besok.</p>
       <button class="pri needActive" id="btnToken" type="button">Buat token hari ini</button>
       <div id="tokenBox"></div>
     </section>
 
     <section class="card" id="subCard">
-      <h2>⭐ Langganan</h2>
+      <h2>⭐ Langganan (Aktifkan Kelas)</h2>
       <p class="sub" id="renewHint">Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.</p>
+      <div style="margin:10px 0 6px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.84rem;color:var(--mut)">
+        <b style="color:var(--ink)">Cara mengaktifkan:</b><br>
+        1. Pilih salah satu paket di bawah (mulai Rp 10.000/hari).<br>
+        2. Klik tombol paket, lalu bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
+        3. Setelah bayar, akun otomatis aktif dan Anda bisa membuat token untuk siswa.
+      </div>
       <div class="pkgGrid">
         <button class="pkg" type="button" data-paket="harian">
           <b>Harian</b><span>Rp 10.000</span><small>Aktif 1 hari</small>
@@ -197,16 +222,16 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
         <button class="ghost small" id="btnCheckPay" type="button" style="width:100%">Cek status pembayaran terakhir</button>
       </div>
       <div class="row" style="margin-top:8px">
-        <label>Punya kode aktivasi?<input id="renewKode" placeholder="PCN-XXXX-XXXX"></label>
+        <label>Punya kode aktivasi?<input id="renewKode" placeholder="Contoh: PCN-XXXX-XXXX"></label>
         <button class="pri" id="btnRenew" type="button">Pakai kode</button>
       </div>
-      <p class="hint">Pembayaran paket di atas diproses otomatis lewat Midtrans (QRIS, GoPay, DANA, ShopeePay, Virtual Account).</p>
+      <p class="hint">Pembayaran paket di atas diproses otomatis lewat Midtrans (QRIS, GoPay, DANA, ShopeePay, Virtual Account). Jika punya kode aktivasi dari pemilik, masukkan di atas.</p>
     </section>
   </div>
 
   <section class="card">
     <h2>🧒 Murid <span id="muridCount" class="hint" style="font-weight:400"></span></h2>
-    <p class="sub">Maksimal 50 murid per akun guru.</p>
+    <p class="sub">Tambahkan nama murid satu per satu. Maksimal 50 murid per akun guru.</p>
     <form id="formMurid" class="row">
       <label>Nama murid<input id="muridNama" placeholder="Nama lengkap" required></label>
       <label>Kelas<input id="muridKelas" placeholder="Contoh: 5A"></label>
@@ -218,7 +243,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <section class="card">
     <h2>📝 Soal tambahan</h2>
-    <p class="sub">Soal ini otomatis masuk ke game sesuai organ dan level. Soal bawaan tetap ada.</p>
+    <p class="sub">Soal ini otomatis masuk ke game sesuai organ dan level. Soal bawaan game tetap ada, jadi tidak wajib diisi.</p>
     <form id="formSoal" class="grid2">
       <label>Organ
         <select id="soalOrgan">
@@ -248,7 +273,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
   <section class="card">
     <h2>📊 Rekap nilai</h2>
-    <p class="sub">Nilai semua murid, per kelas, dan per materi.</p>
+    <p class="sub">Nilai semua murid, per kelas, dan per materi. Klik Muat rekap untuk melihat.</p>
     <div class="row">
       <button class="pri" id="btnRekap" type="button">Muat rekap</button>
       <button class="ghost" id="btnCsv" type="button" disabled>Unduh CSV</button>
@@ -514,16 +539,16 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     var kelas = 'banner';
     if (!aktif) {
       kelas += ' bad';
-      judul.textContent = user.paid_until ? 'Masa aktif sudah habis' : 'Akun belum aktif';
-      ket.textContent = 'Pilih paket Midtrans (mulai Rp 10.000/hari) atau masukkan kode aktivasi untuk membuka kelola kelas.';
+      judul.textContent = user.paid_until ? 'Masa aktif sudah habis' : 'Kelas belum aktif';
+      ket.textContent = 'Pilih paket pembayaran di bawah (mulai Rp 10.000/hari) untuk membuka kelola murid, soal, dan token.';
     } else if (sisa != null && sisa <= 3) {
       kelas += ' warn';
       judul.textContent = sisa <= 0 ? 'Kurang dari 1 hari lagi' : 'Sisa ' + sisa + ' hari lagi';
       ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '. Segera perpanjang agar kelas tidak terhenti.';
     } else {
       kelas += ' ok';
-      judul.textContent = 'Aktif' + (sisa != null ? ' - sisa ' + sisa + ' hari' : '');
-      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '.';
+      judul.textContent = 'Kelas aktif' + (sisa != null ? ' - sisa ' + sisa + ' hari' : '');
+      ket.textContent = 'Aktif sampai ' + waktu(user.paid_until) + '. Anda bisa membuat token untuk siswa.';
     }
     banner.className = kelas;
 
@@ -539,12 +564,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     setTimeout(function () { $('renewKode').focus(); }, 350);
   };
 
-  $('btnLogout').onclick = function () {
-    hapusSesi();
-    $('loginNama').value = '';
-    $('loginPin').value = '';
-    showAuth('login');
+  $('btnTutupPanduan').onclick = function () {
+    $('panduanBox').hidden = true;
+    try { localStorage.setItem('pcn_panduan', '0'); } catch (e) {}
   };
+  try {
+    if (localStorage.getItem('pcn_panduan') === '0') $('panduanBox').hidden = true;
+  } catch (e) {}
 
   // ---------- Murid ----------
   async function muatMurid() {
@@ -722,7 +748,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
         state.user.active = 1;
         renderStatus(state.user);
         simpanSesi(state.token, state.user);
-        toast('Pembayaran berhasil! Masa aktif ditambah ' + d.hari + ' hari.');
+        toast('Pembayaran berhasil! Masa aktif ditambah ' + d.hari + ' hari. Sekarang Anda bisa membuat token untuk siswa.');
         await muatToken();
       } else if (!senyap) {
         toast('Status pembayaran: ' + (d.status || 'menunggu pembayaran') + '.');

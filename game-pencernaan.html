@@ -111,15 +111,16 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 <body><div id="app">
 
 <section id="s-login" class="screen on"><h1>🍽️ Petualangan Makanan</h1><p class="sub">Masukkan kode token dari gurumu untuk mulai bermain!</p><div class="res">
-<input id="tk" placeholder="Kode token (6 karakter)" maxlength="8">
+<input id="tk" placeholder="Kode token (6 karakter dari guru)" maxlength="8">
 <button class="btn" id="vtoken">Verifikasi Token</button>
 <p id="lm" class="sub" style="margin-top:8px"></p>
 <div id="studentPick" style="display:none;margin-top:10px">
+  <p class="sub" style="font-size:.85rem;margin-bottom:6px">Pilih namamu, lalu masukkan PIN (jika ada):</p>
   <select id="st" style="width:100%;padding:12px;border-radius:14px;border:3px solid var(--soft);font:inherit"></select>
   <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada)" maxlength="8" style="margin-top:8px">
-  <button class="btn" id="lg" style="margin-top:8px">Masuk</button>
+  <button class="btn" id="lg" style="margin-top:8px">Masuk &amp; Mulai Bermain</button>
 </div>
-<p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru</a></p>
+<p class="sub" style="margin-top:4px"><a id="guruLink" href="#" target="_blank" rel="noopener" style="color:var(--pri);font-weight:700">👩‍🏫 Halaman guru (untuk guru)</a></p>
 <div id="lb"></div>
 <p class="sub" style="margin-top:10px;font-size:.72rem;opacity:.7">© Destroy27 &amp; Gede Pasek Ary Sugiantara</p>
 </div></section>
