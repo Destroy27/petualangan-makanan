@@ -42,3 +42,7 @@ tr:nth-child(even) td{background:var(--soft)}
 tr:hover td{background:#fff1c9}
 td{border-bottom:1px solid var(--line)}
 .toast{background:var(--ink);border-radius:99px;padding:12px 22px;box-shadow:0 5px 0 rgba(0,0,0,.2)}
+.qrisBox{margin:10px 0;padding:14px;border-radius:20px;background:var(--soft);border:2px dashed var(--pri);text-align:center}
+.qrisBox img{display:block;margin:8px auto;width:min(300px,92%);border-radius:16px;border:3px solid var(--line);background:#fff}
+.qrisBox .btn{display:inline-block;margin:6px 6px 0 0;padding:11px 20px;background:var(--ok);color:#fff;text-decoration:none;box-shadow:0 5px 0 #1f9a64}
+.qrisJudul{margin:0;font-size:1rem}

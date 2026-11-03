@@ -121,3 +121,13 @@ npm run test:all
 - Game memakai suara `speechSynthesis` perangkat. Bila suara bahasa Indonesia belum terpasang, game menampilkan petunjuk.
 - Papan skor publik menampilkan nama, kelas, dan skor terbaik 10 siswa. Set `PAPAN_PUBLIK = "0"` bila nama siswa tidak boleh tampil.
 - Data siswa tersimpan di Cloudflare D1. Beri tahu siswa dan orang tua sesuai aturan sekolah.
+
+## Pembayaran sementara: QRIS + WhatsApp
+
+Selama Midtrans belum dipakai, `admin.html` memakai mode `PAY_MODE = 'qris'`. Klik paket menampilkan gambar `qris.png` dan tombol WhatsApp ke nomor di `WA_NOMOR`.
+
+1. Guru memilih paket, scan QRIS, bayar sesuai nominal, lalu kirim bukti lewat tombol WhatsApp.
+2. Pemilik mengecek pembayaran, lalu membuka `admin.html#owner` (atau ketuk tulisan copyright 5 kali), memasukkan `ADMIN_KEY`, dan menekan tombol "1 kode 3/7/30 hari" sesuai paket.
+3. Pemilik mengirim kode ke guru. Guru memasukkannya di kolom "Punya kode aktivasi?".
+
+Untuk kembali ke pembayaran otomatis, ubah `PAY_MODE` menjadi `'midtrans'` di `admin.html`. Kode Midtrans tidak dihapus.

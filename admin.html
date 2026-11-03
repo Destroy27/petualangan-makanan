@@ -154,8 +154,8 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
       <b style="color:var(--ink)">Cara mulai:</b><br>
       1. Isi nama dan PIN, lalu klik <b>Buat Akun Guru</b>.<br>
       2. Setelah masuk dashboard, pilih paket pembayaran (Rp 10.000 / 3 hari).<br>
-      3. Bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
-      4. Akun otomatis aktif, lalu buat token untuk siswa.
+      3. Bayar lewat QRIS sesuai nominal paket, lalu kirim bukti ke WhatsApp pemilik.<br>
+      4. Masukkan kode aktivasi dari pemilik, lalu buat token untuk siswa.
     </div>
   </form>
 
@@ -203,8 +203,8 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
     <section class="card" id="subCard">
       <h2>⭐ Langganan (Aktifkan Kelas)</h2>
-      <p class="sub" id="renewHint">Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.</p>
-      <div style="margin:10px 0 6px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.84rem;color:var(--mut)">
+      <p class="sub" id="renewHint">Pilih paket pembayaran atau masukkan kode aktivasi.</p>
+      <div id="caraBayar" style="margin:10px 0 6px;padding:10px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);font-size:.84rem;color:var(--mut)">
         <b style="color:var(--ink)">Cara mengaktifkan:</b><br>
         1. Pilih salah satu paket di bawah (mulai Rp 10.000 / 3 hari).<br>
         2. Klik tombol paket, lalu bayar lewat QRIS/GoPay/DANA/ShopeePay/Virtual Account.<br>
@@ -221,6 +221,13 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
           <b>Bulanan</b><span>Rp 35.000</span><small>Aktif 30 hari</small>
         </button>
       </div>
+      <div id="qrisBox" class="qrisBox" hidden>
+        <p class="qrisJudul">Bayar dengan QRIS: <b id="qrisPaket"></b></p>
+        <img id="qrisImg" alt="QRIS pembayaran">
+        <p class="hint">Scan dengan aplikasi bank atau e-wallet apa saja, lalu isi nominal sesuai paket.</p>
+        <a class="btn" id="qrisWa" target="_blank" rel="noopener">💬 Kirim bukti bayar via WhatsApp</a>
+        <button class="ghost small" id="qrisTutup" type="button">Tutup</button>
+      </div>
       <div id="payStatusBox" hidden style="margin:8px 0">
         <button class="ghost small" id="btnCheckPay" type="button" style="width:100%">Cek status pembayaran terakhir</button>
       </div>
@@ -228,7 +235,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
         <label>Punya kode aktivasi?<input id="renewKode" placeholder="Contoh: PCN-XXXX-XXXX"></label>
         <button class="pri" id="btnRenew" type="button">Pakai kode</button>
       </div>
-      <p class="hint">Pembayaran paket di atas diproses otomatis lewat Midtrans (QRIS, GoPay, DANA, ShopeePay, Virtual Account). Jika punya kode aktivasi dari pemilik, masukkan di atas.</p>
+      <p class="hint" id="payHint">Pembayaran paket di atas diproses otomatis lewat Midtrans (QRIS, GoPay, DANA, ShopeePay, Virtual Account). Jika punya kode aktivasi dari pemilik, masukkan di atas.</p>
     </section>
   </div>
 
@@ -322,6 +329,9 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     <button class="pri" id="ownerGen" type="button">Buat kode</button>
     <button class="ghost" id="ownerList" type="button">Lihat kode tersisa</button>
     <button class="ghost" id="ownerCopy" type="button" disabled>Salin semua</button>
+    <button class="ghost" type="button" data-owner-hari="3">1 kode 3 hari</button>
+    <button class="ghost" type="button" data-owner-hari="7">1 kode 7 hari</button>
+    <button class="ghost" type="button" data-owner-hari="30">1 kode 30 hari</button>
   </div>
   <div id="ownerOut" class="ownerOut"></div>
 </section>
@@ -578,7 +588,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
 
     $('renewHint').textContent = aktif
       ? 'Masa aktif saat ini sampai ' + waktu(user.paid_until) + '. Pilih paket di bawah untuk menambah masa aktif.'
-      : 'Pilih paket pembayaran otomatis (Midtrans) atau masukkan kode aktivasi.';
+      : 'Pilih paket pembayaran atau masukkan kode aktivasi.';
     var need = document.querySelectorAll('.needActive');
     for (var i = 0; i < need.length; i++) need[i].disabled = !aktif;
   }
@@ -798,6 +808,35 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     } catch (err) { toast(err.message); } finally { selesai(); }
   };
 
+  // ---------- Pembayaran sementara: QRIS + konfirmasi WhatsApp ----------
+  // PAY_MODE: 'qris' = bayar manual lewat QRIS (pemilik kirim kode aktivasi setelah cek),
+  //           'midtrans' = otomatis lewat Midtrans (butuh akun Midtrans aktif).
+  var PAY_MODE = 'qris';
+  var WA_NOMOR = '6281339676599';
+  var QRIS_GAMBAR = 'qris.png';
+  var PAKET_INFO = {
+    harian: { nama: 'Paket 3 Hari', harga: 10000, hari: 3 },
+    mingguan: { nama: 'Paket Mingguan (7 Hari)', harga: 20000, hari: 7 },
+    bulanan: { nama: 'Paket Bulanan (30 Hari)', harga: 35000, hari: 30 }
+  };
+  function bukaQris(kode) {
+    var p = PAKET_INFO[kode];
+    if (!p) return;
+    var rp = 'Rp ' + p.harga.toLocaleString('id-ID');
+    $('qrisPaket').textContent = p.nama + ' - ' + rp;
+    var img = $('qrisImg');
+    if (!img.getAttribute('src')) img.src = QRIS_GAMBAR;
+    var pesan = 'Halo, saya guru ' + ((state.user && state.user.nama) || '') + '. Saya sudah membayar ' + p.nama + ' (' + rp + ') lewat QRIS. Mohon kode aktivasinya.';
+    $('qrisWa').href = 'https://wa.me/' + WA_NOMOR + '?text=' + encodeURIComponent(pesan);
+    $('qrisBox').hidden = false;
+    $('qrisBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('qrisTutup').onclick = function () { $('qrisBox').hidden = true; };
+  if (PAY_MODE === 'qris') {
+    $('caraBayar').innerHTML = '<b style="color:var(--ink)">Cara mengaktifkan:</b><br>1. Pilih salah satu paket di bawah (mulai Rp 10.000 / 3 hari).<br>2. Scan QRIS yang muncul dan bayar sesuai nominal paket.<br>3. Tekan tombol WhatsApp untuk mengirim bukti bayar ke pemilik.<br>4. Masukkan kode aktivasi dari pemilik di kolom bawah.';
+    $('payHint').textContent = 'Pembayaran sementara lewat QRIS dan dikonfirmasi manual oleh pemilik via WhatsApp. Kode aktivasi dikirim setelah pembayaran dicek.';
+  }
+
   // ---------- Perpanjangan & Midtrans ----------
   var LAST_ORDER = 'pcn_last_order';
 
@@ -841,6 +880,7 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
   for (var ip = 0; ip < tombolPaket.length; ip++) {
     tombolPaket[ip].onclick = async function () {
       var paket = this.getAttribute('data-paket');
+      if (PAY_MODE === 'qris') { bukaQris(paket); return; }
       var selesai = busy(this, 'Membuat...');
       try {
         var d = await api('/api/pay/create', { method: 'POST', body: { paket: paket } });
@@ -1141,6 +1181,14 @@ header{background:linear-gradient(135deg,var(--pri),#f0a06a 55%,var(--lemon));bo
     $('ownerCopy').disabled = !list.length;
   }
 
+  var preKode = document.querySelectorAll('[data-owner-hari]');
+  for (var iq = 0; iq < preKode.length; iq++) {
+    preKode[iq].onclick = function () {
+      $('ownerJumlah').value = 1;
+      $('ownerHari').value = this.getAttribute('data-owner-hari');
+      $('ownerGen').click();
+    };
+  }
   $('ownerGen').onclick = async function () {
     var selesai = busy(this, 'Membuat...');
     try {
