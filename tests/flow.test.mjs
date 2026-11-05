@@ -2,7 +2,7 @@
 // Jalankan: node tests/flow.test.mjs
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import worker from '../worker.js';
+import worker, { PEMBAYARAN_AKTIF } from '../worker.js';
 
 const hasil = [];
 const ok = (nama, lulus, info = '') => hasil.push({ nama, lulus, info });
@@ -48,19 +48,23 @@ const post = (path, body, token) => json(path, {
 const get = (path, token) => json(path, token ? { headers: { Authorization: 'Bearer ' + token } } : {});
 const del = (path, token) => json(path, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
 
-// 1) Daftar guru tanpa kode = akun dibuat tetapi belum aktif (anti akun trial ganda), lalu aktif setelah kode/bayar
+// 1) Daftar guru tanpa kode. Jika pembayaran aktif: menunggu pembayaran. Jika nonaktif: langsung aktif.
 let guruA;
 {
   const r = await post('/api/auth/register', { nama: 'Guru A', pin: '1234', role: 'guru' });
   guruA = r.d;
   ok('daftar guru tanpa kode berhasil', r.status === 200 && guruA.ok === 1, JSON.stringify(r.d));
-  ok('akun baru tanpa kode belum aktif (mencegah penyalahgunaan trial)', guruA.user?.active === 0 && !guruA.user?.paid_until, JSON.stringify(guruA.user));
   ok('tenant guru terbentuk dari id', /^g\d+$/.test(guruA.user?.tenant || ''), guruA.user?.tenant);
-  const blokToken = await post('/api/token/create', {}, guruA.token);
-  ok('akun belum bayar tidak bisa membuat token', blokToken.status === 403 && blokToken.d.e === 'expired', JSON.stringify(blokToken.d));
-  const kodeAwal = await post('/api/owner/kode', { jumlah: 1, hari: 3 }, 'rahasia');
-  const aktifkan = await post('/api/pay/redeem', { kode: kodeAwal.d.list[0].kode }, guruA.token);
-  ok('akun aktif setelah redeem kode', aktifkan.status === 200 && !!aktifkan.d.paid_until, JSON.stringify(aktifkan.d));
+  if (PEMBAYARAN_AKTIF) {
+    ok('akun baru tanpa kode belum aktif (mencegah penyalahgunaan trial)', guruA.user?.active === 0 && !guruA.user?.paid_until, JSON.stringify(guruA.user));
+    const blokToken = await post('/api/token/create', {}, guruA.token);
+    ok('akun belum bayar tidak bisa membuat token', blokToken.status === 403 && blokToken.d.e === 'expired', JSON.stringify(blokToken.d));
+    const kodeAwal = await post('/api/owner/kode', { jumlah: 1, hari: 3 }, 'rahasia');
+    const aktifkan = await post('/api/pay/redeem', { kode: kodeAwal.d.list[0].kode }, guruA.token);
+    ok('akun aktif setelah redeem kode', aktifkan.status === 200 && !!aktifkan.d.paid_until, JSON.stringify(aktifkan.d));
+  } else {
+    ok('pembayaran nonaktif: akun baru langsung aktif', guruA.user?.active === 1, JSON.stringify(guruA.user));
+  }
   const me = await get('/api/auth/me', guruA.token);
   ok('token guru valid untuk /api/auth/me dan aktif', me.status === 200 && me.d.user?.nama === 'Guru A' && !!me.d.user?.active, JSON.stringify(me.d));
 }
@@ -196,29 +200,33 @@ let muridId, soalId, tokenSiswa;
   ok('guru B tidak bisa menghapus murid guru A', (hapusMurid.status === 200 || hapusMurid.status === 403) && (await get('/api/murid', guruA.token)).d.list?.some(x => x.id === muridId), JSON.stringify(hapusMurid.d));
 }
 
-// 5) Kode aktivasi dan perpanjangan
+// 5) Kode aktivasi (tetap berfungsi saat pembayaran nonaktif)
 {
   const kode = await post('/api/owner/kode', { jumlah: 2, hari: 30 }, 'rahasia');
   ok('pemilik bisa membuat kode aktivasi', kode.status === 200 && kode.d.list?.length === 2, JSON.stringify(kode.d));
   const k1 = kode.d.list[0].kode;
 
-  const cek = await post('/api/pay/verify', { kode: k1 });
-  ok('verifikasi kode aktivasi', cek.status === 200 && cek.d.hari === 30, JSON.stringify(cek.d));
+  if (PEMBAYARAN_AKTIF) {
+    const cek = await post('/api/pay/verify', { kode: k1 });
+    ok('verifikasi kode aktivasi', cek.status === 200 && cek.d.hari === 30, JSON.stringify(cek.d));
+  }
 
   const c = await post('/api/auth/register', { nama: 'Guru C', pin: '4321', role: 'guru', kode: k1 });
-  ok('daftar dengan kode aktivasi berhasil', c.status === 200 && c.d.user?.trial === 0, JSON.stringify(c.d));
+  ok('daftar dengan kode aktivasi berhasil', c.status === 200 && c.d.user?.trial === 0 && c.d.user?.active === 1, JSON.stringify(c.d));
 
   const pakaiLagi = await post('/api/auth/register', { nama: 'Guru D', pin: '4321', role: 'guru', kode: k1 });
   ok('kode aktivasi tidak bisa dipakai dua kali', pakaiLagi.status === 400 && pakaiLagi.d.e === 'kode', JSON.stringify(pakaiLagi.d));
 
-  const k2 = kode.d.list[1].kode;
-  const sebelum = await get('/api/auth/me', guruA.token);
-  const perpanjang = await post('/api/pay/redeem', { kode: k2 }, guruA.token);
-  ok('perpanjang langganan guru', perpanjang.status === 200 && perpanjang.d.paid_until > sebelum.d.user.paid_until, JSON.stringify(perpanjang.d));
+  if (PEMBAYARAN_AKTIF) {
+    const k2 = kode.d.list[1].kode;
+    const sebelum = await get('/api/auth/me', guruA.token);
+    const perpanjang = await post('/api/pay/redeem', { kode: k2 }, guruA.token);
+    ok('perpanjang langganan guru', perpanjang.status === 200 && perpanjang.d.paid_until > sebelum.d.user.paid_until, JSON.stringify(perpanjang.d));
+  }
 }
 
-// 6) Masa aktif habis memblokir perubahan data
-{
+// 6) Masa aktif habis memblokir perubahan data (hanya saat pembayaran aktif)
+if (PEMBAYARAN_AKTIF) {
   const db = env.DB;
   const st = db.prepare("UPDATE users SET paid_until=datetime('now','-1 day') WHERE id=?");
   await st.bind(guruA.user.id).run();
@@ -230,8 +238,8 @@ let muridId, soalId, tokenSiswa;
   ok('guru kedaluwarsa masih bisa membaca data', baca.status === 200, JSON.stringify(baca.d));
 }
 
-// 7) Webhook pembayaran otomatis Midtrans (dengan verifikasi SHA-512)
-{
+// 7) Webhook pembayaran otomatis Midtrans (dengan verifikasi SHA-512, hanya saat pembayaran aktif)
+if (PEMBAYARAN_AKTIF) {
   env.MIDTRANS_SERVER_KEY = 'SB-Mid-server-test123';
   const orderId = 'PCN-' + guruA.user.id + '-TEST1';
   await env.DB.prepare(
@@ -256,6 +264,16 @@ let muridId, soalId, tokenSiswa;
 
   const me = await get('/api/auth/me', guruA.token);
   ok('guru kembali aktif setelah pembayaran Midtrans', !!me.d.user?.active, JSON.stringify(me.d.user));
+}
+
+// 8) Pembayaran dimatikan sementara: endpoint pembayaran harus menolak
+if (!PEMBAYARAN_AKTIF) {
+  const bayar = await post('/api/pay/create', { paket: 'harian' }, guruA.token);
+  ok('pembayaran nonaktif: /api/pay/create ditolak 503', bayar.status === 503 && bayar.d.e === 'nonaktif', JSON.stringify(bayar.d));
+  const hook = await post('/api/pay/webhook', { order_id: 'X' });
+  ok('pembayaran nonaktif: webhook ditolak 503', hook.status === 503, JSON.stringify(hook.d));
+  const tok = await post('/api/token/create', {}, guruA.token);
+  ok('pembayaran nonaktif: guru tetap bisa membuat token', tok.status === 200 && /^[A-Z0-9]{6}$/.test(tok.d.kode || ''), JSON.stringify(tok.d));
 }
 
 const lulus = hasil.filter(x => x.lulus).length;
