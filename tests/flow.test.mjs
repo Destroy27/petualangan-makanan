@@ -95,6 +95,7 @@ let muridId, soalId, tokenSiswa;
 
   const v = await post('/api/token/validate', { kode: tokenSiswa });
   ok('validasi token mengembalikan tenant guru', v.status === 200 && v.d.tenant === guruA.user.tenant, JSON.stringify(v.d));
+  ok('token tidak kedaluwarsa (selamanya)', String(v.d.expires_at || '').startsWith('9999'), JSON.stringify(v.d));
 
   const siswa = await get('/api/siswa?token=' + tokenSiswa);
   ok('daftar siswa tidak membocorkan PIN', siswa.d.list?.length === 1 && !('pin' in siswa.d.list[0]), JSON.stringify(siswa.d.list));

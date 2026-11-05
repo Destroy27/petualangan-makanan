@@ -821,7 +821,7 @@
             <h2>🎟️ Token Akses Siswa (Bagikan ke Murid)</h2>
             <p class="sub">
               Token ini dipakai siswa untuk masuk ke game. Satu token berlaku untuk semua murid,
-              sampai besok.
+              sampai diganti.
             </p>
             <button class="pri needActive" id="btnToken" type="button">Buat token hari ini</button>
             <div id="tokenBox"></div>
@@ -1678,9 +1678,9 @@
               '<div class="tokenCode">' +
               esc(t.kode) +
               '</div>' +
-              '<div class="hint">Berlaku sampai ' +
+              (String(t.expires_at || '').indexOf('9999') === 0 ? '<div class="hint">Berlaku selamanya</div>' : '<div class="hint">Berlaku sampai ' +
               esc(waktu(t.expires_at)) +
-              ' WITA</div>' +
+              ' WITA</div>') +
               '<button class="ghost small" type="button" id="btnCopyToken" style="margin-top:8px">Salin token</button></div>';
             $('btnCopyToken').onclick = function () {
               salin(t.kode);

@@ -262,7 +262,7 @@ $('vtoken').onclick=async()=>{
     if(!list.length)sel.value='__new__';
     toggleNewBox();
     $('studentPick').style.display='block';
-    const exp=d.expires_at?String(d.expires_at).slice(0,16):'';
+    const exp=d.expires_at&&String(d.expires_at).indexOf('9999')!==0?String(d.expires_at).slice(0,16):'';
     $('lm').textContent='Token valid'+(exp?' sampai '+exp:'')+(list.length?'. Pilih namamu lalu masuk.':'. Isi namamu lalu masuk.');
     SFX.ok();
   }catch(e){

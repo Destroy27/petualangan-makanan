@@ -5,6 +5,9 @@
 // false = pembayaran dimatikan sementara: harga tidak ditampilkan, akun guru langsung aktif,
 // token dan batas waktunya tetap berjalan. Ubah ke true (atau git revert) untuk mengaktifkan lagi.
 export const PEMBAYARAN_AKTIF = false;
+// true = token tidak kedaluwarsa. Ubah ke false untuk kembali ke batas 1 hari.
+const TOKEN_SELAMANYA = true;
+const SQL_EXP_TOKEN = TOKEN_SELAMANYA ? "'9999-12-31 23:59:59'" : "datetime('now','+8 hours','+1 day')";
 const SQL_AKTIF = PEMBAYARAN_AKTIF
   ? "CASE WHEN paid=1 AND paid_until IS NOT NULL AND paid_until >= datetime('now','+8 hours') THEN 1 ELSE 0 END"
   : '1';
@@ -747,7 +750,7 @@ export default {
         }
         if (!kode) return J({ e: 'db' }, 500);
         await env.DB.prepare(
-          "INSERT INTO token(tenant,kode,harga,expires_at) VALUES(?,?,10000,datetime('now','+8 hours','+1 day'))"
+          "INSERT INTO token(tenant,kode,harga,expires_at) VALUES(?,?,10000," + SQL_EXP_TOKEN + ")"
         )
           .bind(tenant, kode)
           .run();
