@@ -117,11 +117,7 @@ select{padding:8px;border-radius:12px;border:3px solid var(--soft);background:va
 <div id="studentPick" style="display:none;margin-top:10px">
   <p class="sub" style="font-size:.85rem;margin-bottom:6px">Pilih namamu (atau pilih <b>+ Isi nama sendiri</b>):</p>
   <select id="st" style="width:100%;padding:12px;border-radius:14px;border:3px solid var(--soft);font:inherit"></select>
-  <div id="newBox" style="display:none;margin-top:6px">
-    <input id="sn" placeholder="Nama lengkapmu" maxlength="30">
-    <input id="sk" placeholder="Kelas (contoh: 5A)" maxlength="12">
-  </div>
-  <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada / opsional)" maxlength="8" style="margin-top:8px">
+    <input id="sp" type="password" inputmode="numeric" placeholder="PIN siswa (jika ada / opsional)" maxlength="8" style="margin-top:8px">
   <button class="btn" id="lg" style="margin-top:8px">Masuk &amp; Mulai Bermain</button>
 </div>
 <div id="lb"></div>
@@ -226,19 +222,13 @@ async function fetchTimeout(url,opt={},ms=10000){
   finally{if(tid)clearTimeout(tid)}
 }
 function boardRows(rows,judul,note){return '<h2>'+judul+'</h2>'+(rows.length?rows.map((x,i)=>'<div class="row'+(x.me?' me':'')+'"><span>'+(['🥇','🥈','🥉'][i]||(i+1)+'.')+' '+esc(x.nama)+(x.kelas?' <small style="opacity:.65">'+esc(x.kelas)+'</small>':'')+'</span><b>'+(+x.maks||0)+'</b></div>').join(''):'<p class="sub" style="margin:0">'+note+'</p>')}
-function board(){const db=DB.get();const me=ME&&db[ME]?db[ME]:{};const my=me.name||'';const kls=me.kelas||'';const tnt=me.tenant||currentTenant||'';const loc=Object.values(db).filter(x=>x&&x.name&&(!kls||x.kelas===kls)&&(!tnt||x.tenant===tnt)).map(x=>({nama:x.name,kelas:x.kelas,maks:+x.best||0,me:x.name===my})).sort((a,b)=>b.maks-a.maks).slice(0,5);
- $('lb').innerHTML=boardRows(loc,'🏆 Papan Skor'+(kls?' Kelas '+esc(kls):'')+' (perangkat ini)','Belum ada skor di perangkat ini.');
- if(!API_URL||!tnt)return;
- fetch(API_URL+'/api/papan?tenant='+encodeURIComponent(tnt)+'&kelas='+encodeURIComponent(kls),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length)return;
+function board(){const me=ME&&DB.get()[ME]?DB.get()[ME]:{};const my=me.name||'';const kls=me.kelas||'';const tnt=me.tenant||currentTenant||'';$('lb').innerHTML='<p class="sub" style="margin:0">Memuat papan skor...</p>';
+ if(!API_URL||!tnt){$('lb').innerHTML=boardRows([], '🏆 Papan Skor'+(kls?' Kelas '+esc(kls):''), 'Belum ada skor.');return}
+ fetch(API_URL+'/api/papan?tenant='+encodeURIComponent(tnt)+'&kelas='+encodeURIComponent(kls),{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{const t=d&&Array.isArray(d.top)?d.top:[];if(!t.length){$('lb').innerHTML=boardRows([], '🏆 Papan Skor'+(kls?' Kelas '+esc(kls):''), 'Belum ada skor di kelas ini.');return}
   $('lb').innerHTML=boardRows(t.map(x=>({nama:x.nama,kelas:x.kelas,maks:x.maks,me:x.nama===my})),'🏆 Papan Skor'+(kls?' Kelas '+esc(kls):' Kelas')+' (semua perangkat)','')+'<p class="sub" style="font-size:.75rem;margin:6px 0 0">Skor terbaik tiap siswa di kelasmu · 10 teratas</p>'
- }).catch(()=>{})}
+ }).catch(()=>{$('lb').innerHTML=boardRows([], '🏆 Papan Skor'+(kls?' Kelas '+esc(kls):''), 'Gagal memuat papan skor.')})}
 function showStart(){const m=DB.get()[ME]||{};$('who').textContent='👤 '+(m.name||'Siswa')+' · Rekor solo: '+(+m.best||0)+' · Main: '+(+m.plays||0)+'x ';show('s-start');board()}
 let currentToken='',currentTenant='',currentStudents=[];
-function toggleNewBox(){
-  const nb=$('newBox');if(!nb)return;
-  nb.style.display=$('st').value==='__new__'?'block':'none';
-}
-$('st').onchange=toggleNewBox;
 $('vtoken').onclick=async()=>{
   const kode=$('tk').value.trim().toUpperCase();
   if(!kode){$('lm').textContent='Masukkan token.';return}
@@ -246,7 +236,6 @@ $('vtoken').onclick=async()=>{
   const btn=$('vtoken');
   currentToken='';currentTenant='';currentStudents=[];
   $('studentPick').style.display='none';$('st').innerHTML='';$('sp').value='';
-  if($('sn'))$('sn').value='';if($('sk'))$('sk').value='';
   btn.disabled=true;btn.textContent='Memeriksa...';$('lm').textContent='Memeriksa token...';
   try{
     const r=await fetchTimeout(API_URL+'/api/token/validate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kode})},10000);
@@ -256,14 +245,13 @@ $('vtoken').onclick=async()=>{
     const sr=await fetchTimeout(API_URL+'/api/siswa?token='+encodeURIComponent(kode),{},10000);
     const sd=await sr.json();
     const list=Array.isArray(sd.list)?sd.list:[];
+    if(!list.length){$('lm').textContent='Belum ada murid untuk token ini. Minta guru menambahkan nama murid.';currentToken='';currentTenant='';return}
     currentStudents=list;
     const sel=$('st');
-    sel.innerHTML=list.map(s=>'<option value="'+s.id+'">'+esc(s.nama)+' ('+esc(s.kelas||'-')+')'+'</option>').join('')+'<option value="__new__">+ Isi nama sendiri (murid baru)</option>';
-    if(!list.length)sel.value='__new__';
-    toggleNewBox();
+    sel.innerHTML=list.map(s=>'<option value="'+s.id+'">'+esc(s.nama)+' ('+esc(s.kelas||'-')+')'+'</option>').join('');
     $('studentPick').style.display='block';
     const exp=d.expires_at&&String(d.expires_at).indexOf('9999')!==0?String(d.expires_at).slice(0,16):'';
-    $('lm').textContent='Token valid'+(exp?' sampai '+exp:'')+(list.length?'. Pilih namamu lalu masuk.':'. Isi namamu lalu masuk.');
+    $('lm').textContent='Token valid'+(exp?' sampai '+exp:'')+'. Pilih namamu lalu masuk.';
     SFX.ok();
   }catch(e){
     currentToken='';currentTenant='';currentStudents=[];
@@ -275,27 +263,6 @@ $('lg').onclick=async()=>{
   const sel=$('st');const val=sel.value;
   const pin=$('sp').value.trim();
   const btn=$('lg');
-  if(val==='__new__'){
-    const nama=($('sn')?.value||'').trim();
-    const kelas=($('sk')?.value||'').trim();
-    if(!nama){$('lm').textContent='Isi nama lengkapmu.';return}
-    btn.disabled=true;btn.textContent='Masuk...';$('lm').textContent='Menyimpan data siswa...';
-    try{
-      const r=await fetchTimeout(API_URL+'/api/siswa/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:currentToken,nama,kelas,pin})},10000);
-      const d=await r.json();
-      if(!r.ok){$('lm').textContent=d.e==='pin'?'PIN salah.':d.e==='max50'?'Kuota 50 siswa di kelas ini sudah penuh.':'Gagal masuk. Coba lagi.';SFX.bad();return}
-      const k='s'+d.siswa.id;
-      const u=DB.get();
-      u[k]={name:d.siswa.nama, pin:hs((pin||'0000')+k), kelas:d.siswa.kelas||'', tenant:d.siswa.tenant||currentTenant, token:currentToken, best:u[k]?.best||0, plays:u[k]?.plays||0, team:u[k]?.team||0, hist:u[k]?.hist||[]};
-      DB.set(u);ME=k;$('lm').textContent='';$('sp').value='';
-      await loadCustomQuestions(currentToken);
-      SFX.ok();showStart();
-    }catch(e){
-      $('lm').textContent=e&&e.name==='AbortError'?'Server lama merespons. Coba lagi.':'Gagal menghubungi server.';
-      SFX.bad();
-    }finally{btn.disabled=false;btn.textContent='Masuk & Mulai Bermain'}
-    return;
-  }
   const id=+val||0;
   const student=currentStudents.find(s=>+s.id===id);
   if(!student){$('lm').textContent='Pilih siswa.';return}

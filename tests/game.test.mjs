@@ -172,7 +172,7 @@ async function scenarioSolo() {
   ok('daftar organ memakai penanda benar/aktif/netral', st.filter(t => t.startsWith('✅')).length === 5 && /📍 Anus/.test(st.join(' ')), st.join(' '));
   ok('daftar organ dirender di panel & di samping peta', d.querySelectorAll('#stepsTop .stp').length === 6 && d.querySelectorAll('#steps .stp').length === 6);
   d.getElementById('out').click();
-  ok('papan skor meng-escape nama', /A&amp;B/.test(d.getElementById('lb').innerHTML), d.getElementById('lb').innerHTML.slice(0, 80));
+  ok('papan skor global kosong ditampilkan', /Belum ada skor/.test(d.getElementById('lb').innerHTML), d.getElementById('lb').innerHTML.slice(0, 80));
 
   const log = JSON.parse(w.localStorage.getItem('pcn_users'))['s1'];
   ok('rekor lokal tersimpan', log.best === 600 && log.plays === 1, JSON.stringify({ best: log.best, plays: log.plays }));
@@ -320,7 +320,7 @@ async function scenarioPapan() {
   const env2 = mk({ papan: [] });
   await login(env2, 'Tono', '9999');
   await sleep(250);
-  ok('server kosong -> papan lokal tetap dipakai', /perangkat ini/.test(env2.d.getElementById('lb').textContent), env2.d.getElementById('lb').textContent.slice(0, 60));
+  ok('server kosong -> papan global kosong ditampilkan', /Belum ada skor/.test(env2.d.getElementById('lb').textContent), env2.d.getElementById('lb').textContent.slice(0, 60));
   env2.dom.window.close();
 }
 

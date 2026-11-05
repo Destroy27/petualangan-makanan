@@ -820,36 +820,7 @@ export default {
     }
 
     if (u.pathname === '/api/siswa/register' && req.method === 'POST') {
-      const d = await bacaJson();
-      if (d === JSON_GAGAL) return J({ e: 'json' }, 400);
-      const kode = cut(d.token, 40).trim().toUpperCase();
-      const nama = cut(d.nama, 30).trim();
-      const kelas = cut(d.kelas, 12).trim();
-      const pin = cut(d.pin, 8).trim();
-      if (!kode || !nama) return J({ e: 'data' }, 400);
-      try {
-        const tenant = await tokenTenant(kode);
-        if (!tenant) return J({ e: 'token' }, 404);
-        const ada = await env.DB.prepare(
-          'SELECT id,nama,kelas,pin FROM murid WHERE tenant=? AND lower(nama)=lower(?)'
-        )
-          .bind(tenant, nama)
-          .first();
-        if (ada) {
-          if (ada.pin && String(ada.pin) !== pin) return J({ e: 'pin' }, 401);
-          return J({ ok: 1, siswa: { id: ada.id, nama: ada.nama, kelas: ada.kelas, tenant } });
-        }
-        const c = await env.DB.prepare('SELECT COUNT(*) n FROM murid WHERE tenant=?')
-          .bind(tenant)
-          .first();
-        if ((c?.n || 0) >= 50) return J({ e: 'max50' }, 403);
-        const r = await env.DB.prepare('INSERT INTO murid(tenant,nama,kelas,pin) VALUES(?,?,?,?)')
-          .bind(tenant, nama, kelas, pin)
-          .run();
-        return J({ ok: 1, siswa: { id: r.meta.last_row_id, nama, kelas, tenant } });
-      } catch (e) {
-        return J({ e: 'db' }, 500);
-      }
+      return J({ e: 'siswa' }, 404);
     }
 
     if (!PEMBAYARAN_AKTIF && u.pathname.startsWith('/api/pay/')) return J({ e: 'nonaktif' }, 503);
